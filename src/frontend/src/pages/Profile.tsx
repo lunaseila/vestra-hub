@@ -89,6 +89,8 @@ export default function Profile() {
   const [notifEmail, setNotifEmail] = useState(true);
   const [notifDeals, setNotifDeals] = useState(false);
   const [notifPassport, setNotifPassport] = useState(true);
+  const [activeTab, setActiveTab] = useState("collection");
+  const [settingsMessage, setSettingsMessage] = useState("");
   const wishlistItems = products.filter((item) => wishlist.includes(item.id));
   const purchasedItems = orders.flatMap((order) =>
     order.items
@@ -353,6 +355,7 @@ export default function Profile() {
                   transition:
                     "background var(--dur-micro) var(--ease-luxury), color var(--dur-micro) var(--ease-luxury)",
                 }}
+                onClick={() => setActiveTab(tab)}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
                     "var(--vestra-glass)";
@@ -375,7 +378,7 @@ export default function Profile() {
 
         {/* MAIN CONTENT */}
         <main data-ocid="profile.content.panel">
-          <Tabs defaultValue="collection">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList
               style={{
                 background: "var(--vestra-graphite)",
@@ -523,6 +526,55 @@ export default function Profile() {
                         {order.shippingMethod} · Tracking:{" "}
                         {order.trackingNumber || "Not available"}
                       </p>
+                      <details style={{ marginTop: "0.875rem" }}>
+                        <summary
+                          style={{
+                            color: "var(--vestra-gold)",
+                            cursor: "pointer",
+                            fontSize: "0.82rem",
+                          }}
+                        >
+                          View order details
+                        </summary>
+                        <div
+                          style={{
+                            marginTop: "0.875rem",
+                            borderTop: "1px solid var(--vestra-border)",
+                            paddingTop: "0.875rem",
+                            color: "var(--vestra-grey-light)",
+                            fontSize: "0.82rem",
+                            lineHeight: 1.7,
+                          }}
+                        >
+                          <p>
+                            Ship to: {order.shippingAddress.fullName},{" "}
+                            {order.shippingAddress.address},{" "}
+                            {order.shippingAddress.city},{" "}
+                            {order.shippingAddress.country}
+                          </p>
+                          <p>
+                            Billing: {order.billingAddress.fullName},{" "}
+                            {order.billingAddress.address},{" "}
+                            {order.billingAddress.city}
+                          </p>
+                          <p>
+                            Stripe reference:{" "}
+                            {order.stripePaymentId || "Pending"}
+                          </p>
+                          <ul
+                            style={{ marginTop: "0.5rem", paddingLeft: "1rem" }}
+                          >
+                            {order.items.map((line) => (
+                              <li key={`${order.id}-${line.itemId}`}>
+                                {line.brand} — {line.name}
+                                {line.passportId
+                                  ? ` · Passport ${line.passportId}`
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </details>
                     </div>
                   ))}
                 </div>
@@ -928,10 +980,26 @@ export default function Profile() {
                   type="button"
                   data-ocid="profile.save_profile.button"
                   className="btn-gold"
+                  onClick={() => {
+                    setSettingsMessage("Profile settings saved locally.");
+                    window.setTimeout(() => setSettingsMessage(""), 2500);
+                  }}
                   style={{ marginTop: "1.25rem", fontSize: "0.85rem" }}
                 >
                   Save Changes
                 </button>
+                {settingsMessage && (
+                  <output
+                    style={{
+                      color: "var(--vestra-verified)",
+                      fontSize: "0.82rem",
+                      marginTop: "0.75rem",
+                      display: "block",
+                    }}
+                  >
+                    {settingsMessage}
+                  </output>
+                )}
               </div>
 
               <div

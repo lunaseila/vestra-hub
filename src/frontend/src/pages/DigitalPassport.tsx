@@ -117,9 +117,10 @@ export default function DigitalPassport() {
               margin: "0 auto",
             }}
           >
-            Every piece authenticated by Vestra receives a Digital Passport — a
-            permanent, verifiable record of its provenance, condition, and
-            journey. It cannot be forged, lost, or disputed.
+            Every piece authenticated by Vestra can receive a Digital Passport —
+            a structured record of available provenance, condition, materials,
+            and ownership context. Missing details are shown as unavailable
+            rather than inferred.
           </p>
         </div>
 
@@ -508,6 +509,50 @@ export default function DigitalPassport() {
                 {passport?.condition_verified || item.condition}
               </span>
             </div>
+
+            {[
+              ["Materials", item.material || "Not provided"],
+              ["Seller", item.seller_id || "Not provided"],
+              ["Provenance", "Not provided"],
+              [
+                "Ownership",
+                passportIssued ? "Available after purchase" : "Not available",
+              ],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  borderTop: "1px solid rgba(196,169,125,0.12)",
+                  paddingTop: "0.75rem",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontSize: "0.7rem",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--vestra-grey)",
+                  }}
+                >
+                  {label}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontSize: "0.95rem",
+                    color: "var(--vestra-white)",
+                    textAlign: "right",
+                    maxWidth: "55%",
+                  }}
+                >
+                  {value}
+                </span>
+              </div>
+            ))}
           </div>
 
           {/* Certificate Footer */}

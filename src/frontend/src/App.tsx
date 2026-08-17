@@ -16,6 +16,7 @@ import {
 import About from "@/pages/About";
 import Bag from "@/pages/Bag";
 import BuyItem from "@/pages/BuyItem";
+import CheckoutResult from "@/pages/CheckoutResult";
 import Collection from "@/pages/Collection";
 import Contact from "@/pages/Contact";
 import DigitalPassport from "@/pages/DigitalPassport";
@@ -158,6 +159,21 @@ const checkoutRoute = createRoute({
   path: "/Checkout",
   component: BuyItem,
 });
+const checkoutSuccessRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/CheckoutSuccess",
+  component: () => <CheckoutResult result="success" />,
+});
+const checkoutCancelledRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/CheckoutCancelled",
+  component: () => <CheckoutResult result="cancelled" />,
+});
+const checkoutFailedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/CheckoutFailed",
+  component: () => <CheckoutResult result="failed" />,
+});
 const bagRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/Bag",
@@ -271,6 +287,15 @@ const chRedirectRoute = createRoute({
   component: () => null,
 });
 
+const communityAliasRoute = createRoute({
+  getParentRoute: () => chParentRoute,
+  path: "/Community",
+  beforeLoad: () => {
+    throw redirect({ to: "/CommunityHub/Home" });
+  },
+  component: () => null,
+});
+
 const chHomeRoute = createRoute({
   getParentRoute: () => chParentRoute,
   path: "/CommunityHub/Home",
@@ -331,6 +356,9 @@ const routeTree = rootRoute.addChildren([
   passportAliasRoute,
   buyRoute,
   checkoutRoute,
+  checkoutSuccessRoute,
+  checkoutCancelledRoute,
+  checkoutFailedRoute,
   bagRoute,
   submitItemRoute,
   sellRoute,
@@ -353,6 +381,7 @@ const routeTree = rootRoute.addChildren([
   // Community Hub routes (separate namespace, separate layout)
   chParentRoute.addChildren([
     chRedirectRoute,
+    communityAliasRoute,
     chHomeRoute,
     chMainRoute,
     chOpportunitiesRoute,

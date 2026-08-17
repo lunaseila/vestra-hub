@@ -1,13 +1,13 @@
 import { useMarketplace } from "@/context/MarketplaceContext";
-import type {
-  MarketplaceOrder,
-  PaymentStatus,
-} from "@/context/MarketplaceContext";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  StripeConfigurationError,
+  createStripeCheckoutSession,
+  getStripeConfigurationMessage,
+} from "@/lib/commerceIntegrations";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  CheckCircle,
   CreditCard,
   Lock,
   Package,
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 
 interface ShippingForm {
   fullName: string;
@@ -50,7 +50,7 @@ const COUNTRIES = [
 
 export default function BuyItem() {
   const { isAuthenticated, login } = useAuth();
-  const { products, bagItems, createOrder } = useMarketplace();
+  const { products, bagItems, createCheckoutDraft } = useMarketplace();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const search = useSearch({ strict: false }) as any;
   const navigate = useNavigate();
@@ -59,16 +59,10 @@ export default function BuyItem() {
   const checkoutItems = itemId
     ? products.filter((i) => i.id === itemId)
     : bagItems;
-  const item = checkoutItems[0] ?? products[0];
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<ShippingForm>(EMPTY_FORM);
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
-    "configuration_required",
-  );
-  const [createdOrder, setCreatedOrder] = useState<MarketplaceOrder | null>(
-    null,
-  );
   const [checkoutError, setCheckoutError] = useState("");
+  const [isStartingPayment, setIsStartingPayment] = useState(false);
 
   const subtotal = checkoutItems.reduce(
     (sum, checkoutItem) => sum + (checkoutItem.price_buy ?? 0),
@@ -84,22 +78,42 @@ export default function BuyItem() {
 
   const isFormValid = Object.values(form).every((v) => v.trim().length > 0);
 
-  const handlePlaceOrder = () => {
+  const handleStartStripeCheckout = async () => {
     setCheckoutError("");
+    setIsStartingPayment(true);
     try {
-      const order = createOrder({
+      const draft = createCheckoutDraft({
         itemId,
         shippingAddress: { ...form, isDefault: true },
-        paymentOutcome: paymentStatus,
       });
-      setCreatedOrder(order);
-      setStep(3);
+      const origin = window.location.origin;
+      const redirectUrl = await createStripeCheckoutSession({
+        checkoutId: draft.id,
+        customerEmail: form.email,
+        successUrl: `${origin}/CheckoutSuccess`,
+        cancelUrl: `${origin}/CheckoutCancelled`,
+        items: checkoutItems.map((checkoutItem) => ({
+          id: checkoutItem.id,
+          name: checkoutItem.name,
+          brand: checkoutItem.brand,
+          price: checkoutItem.price_buy ?? 0,
+          image: checkoutItem.images[0],
+        })),
+        metadata: {
+          itemIds: draft.itemIds.join(","),
+          vestraCheckoutId: draft.id,
+        },
+      });
+      window.location.assign(redirectUrl);
     } catch (error) {
       setCheckoutError(
-        error instanceof Error
-          ? error.message
-          : "Unable to create the order. Please try again.",
+        error instanceof StripeConfigurationError
+          ? getStripeConfigurationMessage()
+          : error instanceof Error
+            ? error.message
+            : "Unable to start secure Stripe checkout. Please try again.",
       );
+      setIsStartingPayment(false);
     }
   };
 
@@ -162,7 +176,7 @@ export default function BuyItem() {
         {/* Progress Bar */}
         <div className="mb-10" data-ocid="buy.progress">
           <div className="flex items-center gap-3 mb-3">
-            {([1, 2, 3] as Step[]).map((s) => (
+            {([1, 2] as Step[]).map((s) => (
               <div
                 key={s}
                 className="flex items-center gap-3 flex-1 last:flex-none"
@@ -193,10 +207,10 @@ export default function BuyItem() {
                           : "var(--vestra-grey)",
                     }}
                   >
-                    {s === 1 ? "Review" : s === 2 ? "Shipping" : "Confirm"}
+                    {s === 1 ? "Review" : "Payment"}
                   </span>
                 </div>
-                {s < 3 && (
+                {s < 2 && (
                   <div
                     className="flex-1 h-px transition-luxury"
                     style={{
@@ -469,38 +483,15 @@ export default function BuyItem() {
                 className="text-sm"
                 style={{ color: "var(--vestra-grey-light)" }}
               >
-                Live card entry must be rendered by Stripe after the frontend is
-                given a publishable key and the backend creates a payment intent
-                or checkout session. No secret keys belong in this client.
+                Payment is completed through Stripe Checkout. Vestra creates the
+                Checkout Session server-side, redirects you to Stripe, and the
+                deployed webhook verifies payment before production fulfillment.
               </p>
-              <div>
-                <label
-                  htmlFor="payment-status-preview"
-                  className="text-label text-vestra-grey-light block mb-1.5"
-                >
-                  Payment status handling
-                </label>
-                <select
-                  id="payment-status-preview"
-                  value={paymentStatus}
-                  onChange={(event) =>
-                    setPaymentStatus(event.target.value as PaymentStatus)
-                  }
-                  data-ocid="buy.payment_status_select"
-                  className="w-full text-vestra-white text-sm px-4 py-3 rounded-lg outline-none transition-luxury"
-                  style={{
-                    background: "var(--vestra-graphite)",
-                    border: "1px solid var(--vestra-border)",
-                  }}
-                >
-                  <option value="configuration_required">
-                    Configuration required
-                  </option>
-                  <option value="succeeded">Successful payment</option>
-                  <option value="failed">Failed payment</option>
-                  <option value="cancelled">Cancelled payment</option>
-                </select>
-              </div>
+              <p className="text-xs" style={{ color: "var(--vestra-grey)" }}>
+                Required configuration: VITE_CHECKOUT_API_BASE_URL,
+                STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and webhook
+                deployment.
+              </p>
             </div>
 
             {checkoutError && (
@@ -521,139 +512,16 @@ export default function BuyItem() {
               <button
                 type="button"
                 className="btn-gold flex-1"
-                onClick={handlePlaceOrder}
-                disabled={!isFormValid}
-                style={{ opacity: isFormValid ? 1 : 0.45 }}
+                onClick={handleStartStripeCheckout}
+                disabled={!isFormValid || isStartingPayment}
+                style={{
+                  opacity: isFormValid && !isStartingPayment ? 1 : 0.45,
+                }}
                 data-ocid="buy.place_order_button"
               >
-                Place Order — {fmt(total)}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3 — Confirmation */}
-        {step === 3 && (
-          <div
-            className="text-center space-y-8 animate-luxury-reveal py-8"
-            data-ocid="buy.step3"
-          >
-            <div className="flex justify-center">
-              <svg
-                width="90"
-                height="90"
-                viewBox="0 0 90 90"
-                fill="none"
-                role="img"
-                aria-label="Order confirmed"
-              >
-                <circle
-                  cx="45"
-                  cy="45"
-                  r="40"
-                  stroke="var(--vestra-gold)"
-                  strokeWidth="2"
-                  opacity="0.25"
-                />
-                <circle
-                  cx="45"
-                  cy="45"
-                  r="40"
-                  stroke="var(--vestra-gold)"
-                  strokeWidth="2"
-                  strokeDasharray="251"
-                  strokeDashoffset="0"
-                  style={{
-                    animation: "draw-check 1.5s var(--ease-reveal) forwards",
-                  }}
-                  strokeLinecap="round"
-                  transform="rotate(-90 45 45)"
-                />
-                <path
-                  d="M28 46L40 58L63 33"
-                  stroke="var(--vestra-gold)"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray="60"
-                  strokeDashoffset="60"
-                  style={{
-                    animation:
-                      "draw-check 0.8s 0.6s var(--ease-reveal) forwards",
-                  }}
-                />
-              </svg>
-            </div>
-
-            <div className="space-y-3">
-              <h1 className="font-playfair text-4xl text-vestra-white">
-                Your piece is on its way.
-              </h1>
-              <p
-                className="text-sm max-w-md mx-auto"
-                style={{ color: "var(--vestra-grey-light)" }}
-              >
-                Your order has been recorded. Live payment capture, shipping
-                rating, and transactional email delivery require production
-                credentials and webhook configuration.
-              </p>
-            </div>
-
-            <div
-              className="vestra-card p-5 inline-block text-left space-y-2"
-              style={{ minWidth: "260px" }}
-            >
-              <p className="text-label" style={{ color: "var(--vestra-grey)" }}>
-                Order Reference
-              </p>
-              <p className="font-mono-vestra text-xl text-gold">
-                {createdOrder?.orderNumber ?? "Pending"}
-              </p>
-              <p className="text-xs" style={{ color: "var(--vestra-grey)" }}>
-                Payment: {createdOrder?.paymentStatus ?? paymentStatus}
-              </p>
-              <p className="text-xs" style={{ color: "var(--vestra-grey)" }}>
-                Status: {createdOrder?.status ?? "pending_payment"}
-              </p>
-              <p className="text-xs" style={{ color: "var(--vestra-grey)" }}>
-                Keep this for your records
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                type="button"
-                className="btn-gold"
-                onClick={() =>
-                  navigate({
-                    to: `/DigitalPassport?id=${
-                      createdOrder?.items[0]?.passportId ??
-                      item.passport_id ??
-                      item.id
-                    }`,
-                  })
-                }
-                data-ocid="buy.view_passport_button"
-              >
-                <CheckCircle size={14} className="mr-2" />
-                View Digital Passport
-              </button>
-              <button
-                type="button"
-                className="btn-outlined"
-                onClick={() => navigate({ to: "/Account" })}
-                data-ocid="buy.view_account_button"
-              >
-                View Order in Account
-              </button>
-              <button
-                type="button"
-                className="btn-outlined"
-                onClick={() => navigate({ to: "/Archive" })}
-                data-ocid="buy.continue_shopping_button"
-              >
-                <ShoppingBag size={14} className="mr-2" />
-                Continue Shopping
+                {isStartingPayment
+                  ? "Starting Secure Payment..."
+                  : `Continue to Stripe — ${fmt(total)}`}
               </button>
             </div>
           </div>

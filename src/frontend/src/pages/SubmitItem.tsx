@@ -144,7 +144,7 @@ const EMPTY_FORM: FormState = {
 export default function SubmitItem() {
   const { submitSellerItem } = useMarketplace();
   const navigate = useNavigate();
-  const search = useSearch({ from: "/SubmitItem" });
+  const search = useSearch({ strict: false });
   const [currentSection, setCurrentSection] = useState(0);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [form, setForm] = useState<FormState>(() => {

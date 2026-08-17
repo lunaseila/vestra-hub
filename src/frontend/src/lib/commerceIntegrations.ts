@@ -31,3 +31,59 @@ export function getStripeConfigurationMessage() {
   }
   return "Stripe requires VITE_STRIPE_PUBLISHABLE_KEY, VITE_CHECKOUT_API_BASE_URL, STRIPE_SECRET_KEY, and STRIPE_WEBHOOK_SECRET before live payments can be enabled.";
 }
+
+export interface StripeCheckoutLineItem {
+  id: string;
+  name: string;
+  brand: string;
+  price: number;
+  image?: string;
+}
+
+export interface CreateStripeCheckoutSessionInput {
+  checkoutId: string;
+  items: StripeCheckoutLineItem[];
+  customerEmail: string;
+  successUrl: string;
+  cancelUrl: string;
+  metadata?: Record<string, string>;
+}
+
+export class StripeConfigurationError extends Error {
+  constructor(message = getStripeConfigurationMessage()) {
+    super(message);
+    this.name = "StripeConfigurationError";
+  }
+}
+
+export async function createStripeCheckoutSession(
+  input: CreateStripeCheckoutSessionInput,
+) {
+  const status = getCommerceIntegrationStatus();
+  if (!status.checkoutApiConfigured) {
+    throw new StripeConfigurationError();
+  }
+
+  const response = await fetch(
+    `${String(import.meta.env.VITE_CHECKOUT_API_BASE_URL).replace(/\/$/, "")}/stripe/create-checkout-session`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(
+      message ||
+        "Unable to create a Stripe Checkout session. Please try again.",
+    );
+  }
+
+  const payload = (await response.json()) as { url?: string };
+  if (!payload.url) {
+    throw new Error("Stripe Checkout session did not return a redirect URL.");
+  }
+  return payload.url;
+}

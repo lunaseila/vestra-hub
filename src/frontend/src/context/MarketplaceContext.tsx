@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   addresses: "vestra.marketplace.addresses",
   submissions: "vestra.marketplace.submissions",
   captures: "vestra.marketplace.captures",
+  pendingCheckout: "vestra.marketplace.pendingCheckout",
 } as const;
 
 export type PaymentStatus =
@@ -78,6 +79,19 @@ export interface MarketplaceOrder {
   emailsQueued: string[];
 }
 
+export interface PendingCheckout {
+  id: string;
+  itemId?: string;
+  itemIds: string[];
+  subtotal: number;
+  total: number;
+  currency: "EUR";
+  shippingAddress: VestraAddress;
+  billingAddress: VestraAddress;
+  shippingMethod: string;
+  createdAt: string;
+}
+
 export interface SellerSubmission {
   id: string;
   submissionType: "fashion" | "art";
@@ -109,7 +123,16 @@ interface CreateOrderInput {
   shippingAddress: Omit<VestraAddress, "id">;
   billingAddress?: Omit<VestraAddress, "id">;
   itemId?: string;
+  itemIds?: string[];
   paymentOutcome?: PaymentStatus;
+  stripePaymentId?: string;
+  clearBagOnSuccess?: boolean;
+}
+
+interface CreateCheckoutDraftInput {
+  shippingAddress: Omit<VestraAddress, "id">;
+  billingAddress?: Omit<VestraAddress, "id">;
+  itemId?: string;
 }
 
 interface MarketplaceContextValue {
@@ -121,6 +144,7 @@ interface MarketplaceContextValue {
   addresses: VestraAddress[];
   submissions: SellerSubmission[];
   captures: InquiryCapture[];
+  pendingCheckout: PendingCheckout | null;
   bagCount: number;
   bagItems: Item[];
   subtotal: number;
@@ -132,6 +156,11 @@ interface MarketplaceContextValue {
   removeFromBag: (itemId: string) => void;
   clearBag: () => void;
   createOrder: (input: CreateOrderInput) => MarketplaceOrder;
+  createCheckoutDraft: (input: CreateCheckoutDraftInput) => PendingCheckout;
+  completeCheckoutDraft: (input: {
+    sessionId: string;
+    paymentStatus: Extract<PaymentStatus, "succeeded" | "failed" | "cancelled">;
+  }) => MarketplaceOrder | null;
   cancelOrder: (orderId: string) => void;
   saveAddress: (address: Omit<VestraAddress, "id">) => VestraAddress;
   submitSellerItem: (
@@ -213,6 +242,10 @@ export function MarketplaceProvider({
   const [captures, setCaptures] = useState<InquiryCapture[]>(() =>
     readStorage(STORAGE_KEYS.captures, []),
   );
+  const [pendingCheckout, setPendingCheckout] =
+    useState<PendingCheckout | null>(() =>
+      readStorage(STORAGE_KEYS.pendingCheckout, null),
+    );
 
   useEffect(() => writeStorage(STORAGE_KEYS.wishlist, wishlist), [wishlist]);
   useEffect(() => writeStorage(STORAGE_KEYS.bag, bag), [bag]);
@@ -223,6 +256,10 @@ export function MarketplaceProvider({
     [submissions],
   );
   useEffect(() => writeStorage(STORAGE_KEYS.captures, captures), [captures]);
+  useEffect(
+    () => writeStorage(STORAGE_KEYS.pendingCheckout, pendingCheckout),
+    [pendingCheckout],
+  );
 
   const products = useMemo(() => MOCK_ITEMS, []);
   const passports = useMemo(
@@ -296,9 +333,13 @@ export function MarketplaceProvider({
 
   const createOrder = useCallback(
     (input: CreateOrderInput) => {
-      const selectedItems = input.itemId
-        ? products.filter((item) => item.id === input.itemId)
-        : bagItems;
+      const selectedItems = input.itemIds
+        ? (input.itemIds
+            .map((itemId) => products.find((item) => item.id === itemId))
+            .filter(Boolean) as Item[])
+        : input.itemId
+          ? products.filter((item) => item.id === input.itemId)
+          : bagItems;
       if (selectedItems.length === 0) {
         throw new Error("Cannot create an order without items.");
       }
@@ -337,6 +378,7 @@ export function MarketplaceProvider({
         status,
         paymentStatus,
         paymentProvider: "stripe",
+        stripePaymentId: input.stripePaymentId,
         shippingAddress,
         billingAddress,
         shippingMethod: "Provider configuration required",
@@ -351,7 +393,7 @@ export function MarketplaceProvider({
 
       setOrders((current) => [order, ...current]);
       if (
-        !input.itemId &&
+        (input.clearBagOnSuccess || !input.itemId) &&
         paymentStatus !== "failed" &&
         paymentStatus !== "cancelled"
       ) {
@@ -360,6 +402,64 @@ export function MarketplaceProvider({
       return order;
     },
     [bagItems, clearBag, getPassportForItem, products, saveAddress],
+  );
+
+  const createCheckoutDraft = useCallback(
+    (input: CreateCheckoutDraftInput) => {
+      const selectedItems = input.itemId
+        ? products.filter((item) => item.id === input.itemId)
+        : bagItems;
+      if (selectedItems.length === 0) {
+        throw new Error("Cannot start checkout without items.");
+      }
+      const shippingAddress = saveAddress(input.shippingAddress);
+      const billingAddress = input.billingAddress
+        ? { ...input.billingAddress, id: createId("ADDR") }
+        : shippingAddress;
+      const subtotal = selectedItems.reduce(
+        (sum, item) => sum + (item.price_buy ?? 0),
+        0,
+      );
+      const draft: PendingCheckout = {
+        id: createId("CHK"),
+        itemId: input.itemId,
+        itemIds: selectedItems.map((item) => item.id),
+        subtotal,
+        total: subtotal,
+        currency: "EUR",
+        shippingAddress,
+        billingAddress,
+        shippingMethod: "Provider configuration required",
+        createdAt: new Date().toISOString(),
+      };
+      setPendingCheckout(draft);
+      return draft;
+    },
+    [bagItems, products, saveAddress],
+  );
+
+  const completeCheckoutDraft = useCallback(
+    (input: {
+      sessionId: string;
+      paymentStatus: Extract<
+        PaymentStatus,
+        "succeeded" | "failed" | "cancelled"
+      >;
+    }) => {
+      if (!pendingCheckout) return null;
+      const order = createOrder({
+        itemId: pendingCheckout.itemId,
+        itemIds: pendingCheckout.itemIds,
+        shippingAddress: pendingCheckout.shippingAddress,
+        billingAddress: pendingCheckout.billingAddress,
+        paymentOutcome: input.paymentStatus,
+        stripePaymentId: input.sessionId,
+        clearBagOnSuccess: input.paymentStatus === "succeeded",
+      });
+      setPendingCheckout(null);
+      return order;
+    },
+    [createOrder, pendingCheckout],
   );
 
   const cancelOrder = useCallback((orderId: string) => {
@@ -414,6 +514,7 @@ export function MarketplaceProvider({
       addresses,
       submissions,
       captures,
+      pendingCheckout,
       bagCount: bag.length,
       bagItems,
       subtotal,
@@ -425,6 +526,8 @@ export function MarketplaceProvider({
       removeFromBag,
       clearBag,
       createOrder,
+      createCheckoutDraft,
+      completeCheckoutDraft,
       cancelOrder,
       saveAddress,
       submitSellerItem,
@@ -439,6 +542,7 @@ export function MarketplaceProvider({
       addresses,
       submissions,
       captures,
+      pendingCheckout,
       bagItems,
       subtotal,
       getItem,
@@ -449,6 +553,8 @@ export function MarketplaceProvider({
       removeFromBag,
       clearBag,
       createOrder,
+      createCheckoutDraft,
+      completeCheckoutDraft,
       cancelOrder,
       saveAddress,
       submitSellerItem,

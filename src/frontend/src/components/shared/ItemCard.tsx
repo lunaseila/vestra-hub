@@ -184,8 +184,10 @@ export default function ItemCard({
           aria-label="Quick view"
           data-ocid={`item_card.quick_view_button.${index + 1}`}
           onClick={(e) => {
-            e.preventDefault();
-            onQuickView?.();
+            if (onQuickView) {
+              e.preventDefault();
+              onQuickView();
+            }
           }}
           style={{
             width: "32px",
