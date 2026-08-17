@@ -1,4 +1,5 @@
 import { Switch } from "@/components/ui/switch";
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   Check,
@@ -119,6 +120,7 @@ interface FormState {
   minOffer: string;
   requestValuation: boolean;
   terms: boolean;
+  provenance: string;
 }
 
 const EMPTY_FORM: FormState = {
@@ -136,11 +138,13 @@ const EMPTY_FORM: FormState = {
   minOffer: "",
   requestValuation: false,
   terms: false,
+  provenance: "",
 };
 
 export default function SubmitItem() {
+  const { submitSellerItem } = useMarketplace();
   const navigate = useNavigate();
-  const search = useSearch({ from: "/SubmitItem" });
+  const search = useSearch({ strict: false });
   const [currentSection, setCurrentSection] = useState(0);
   const [completedSections, setCompletedSections] = useState<number[]>([]);
   const [form, setForm] = useState<FormState>(() => {
@@ -211,6 +215,23 @@ export default function SubmitItem() {
     if (currentSection === 3) return form.requestValuation || form.askingPrice;
     if (currentSection === 4) return form.terms;
     return false;
+  };
+
+  const handleSubmitForAuthentication = () => {
+    submitSellerItem({
+      submissionType: form.submissionType,
+      name: form.name,
+      brand: form.brand,
+      category: form.category,
+      season: form.season,
+      year: form.year,
+      medium: form.medium,
+      condition: form.condition,
+      askingPrice: form.requestValuation ? undefined : form.askingPrice,
+      provenance: form.provenance,
+      imageNames: images.map((image) => image.name),
+    });
+    setSubmitted(true);
   };
 
   if (submitted) {
@@ -335,10 +356,10 @@ export default function SubmitItem() {
           <button
             type="button"
             className="btn-gold"
-            onClick={() => navigate({ to: "/Collection" })}
+            onClick={() => navigate({ to: "/Archive" })}
             data-ocid="submit.continue_button"
           >
-            Back to Collection
+            Back to Archive
           </button>
         </div>
       </div>
@@ -577,6 +598,17 @@ export default function SubmitItem() {
                     </Field>
                   </div>
                 )}
+                <Field label="Provenance / Ownership Notes" id="provenance">
+                  <textarea
+                    value={form.provenance}
+                    onChange={(e) => setField("provenance", e.target.value)}
+                    placeholder="Optional: original receipt, previous ownership, atelier, archive references, restoration notes..."
+                    className="vestra-input"
+                    rows={4}
+                    data-ocid="submit.provenance_textarea"
+                    style={{ resize: "vertical" }}
+                  />
+                </Field>
               </div>
             )}
             <SectionNav
@@ -981,6 +1013,12 @@ export default function SubmitItem() {
                       ? `Yes${form.minOffer ? ` (min. €${form.minOffer})` : ""}`
                       : "No",
                   ],
+                  [
+                    "Provenance",
+                    form.provenance.trim()
+                      ? form.provenance.trim()
+                      : "Not provided",
+                  ],
                   ["Photos", `${images.length} uploaded`],
                 ] as [string, string][]
               ).map(([label, value]) => (
@@ -1046,7 +1084,7 @@ export default function SubmitItem() {
                 className="btn-gold flex-1"
                 disabled={!form.terms}
                 style={{ opacity: form.terms ? 1 : 0.45 }}
-                onClick={() => setSubmitted(true)}
+                onClick={handleSubmitForAuthentication}
                 data-ocid="submit.submit_button"
               >
                 Submit for Authentication

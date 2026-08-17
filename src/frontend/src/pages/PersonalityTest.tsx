@@ -241,7 +241,7 @@ export default function PersonalityTest() {
           }}
         >
           <Link
-            to="/Collection"
+            to="/Archive"
             data-ocid="personality_test.shop_cta.link"
             className="btn-gold"
           >

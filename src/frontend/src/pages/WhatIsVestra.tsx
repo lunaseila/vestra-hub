@@ -530,7 +530,7 @@ export default function WhatIsVestra() {
           own digital passport.
         </p>
         <Link
-          to="/Collection"
+          to="/Archive"
           data-ocid="what_is_vestra.cta_button"
           style={{
             display: "inline-block",

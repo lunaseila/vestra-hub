@@ -1,3 +1,4 @@
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { Check, Clock, Copy, Instagram, MapPin, Twitter } from "lucide-react";
 import { useState } from "react";
 import { SiPinterest } from "react-icons/si";
@@ -53,6 +54,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export default function Contact() {
+  const { captureInquiry } = useMarketplace();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
@@ -68,6 +70,13 @@ export default function Contact() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    captureInquiry({
+      type: subject === "Selling on Vestra" ? "seller" : "contact",
+      name,
+      email,
+      subject: subject || "General Inquiry",
+      message,
+    });
     setSubmitted(true);
   }
 
@@ -377,7 +386,8 @@ export default function Contact() {
                   lineHeight: 1.65,
                 }}
               >
-                Thank you. We\u2019ll be in touch within 24 hours.
+                Thank you. Your inquiry has been recorded and is ready to route
+                through the configured CRM/email service.
               </p>
             </div>
           ) : (

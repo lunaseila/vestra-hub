@@ -3,8 +3,9 @@ import VerifiedBadge from "@/components/shared/VerifiedBadge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { useAuth } from "@/hooks/useAuth";
-import { MOCK_ITEMS, MOCK_PASSPORTS } from "@/types";
+import { MOCK_ITEMS } from "@/types";
 import { Link } from "@tanstack/react-router";
 import {
   Heart,
@@ -13,6 +14,7 @@ import {
   Plus,
   Settings,
   Shield,
+  ShoppingBag,
   Tag,
 } from "lucide-react";
 import { useState } from "react";
@@ -45,6 +47,18 @@ function StatusBadge({ status }: { status: string }) {
       bg: "var(--vestra-verified-bg)",
       color: "var(--vestra-verified)",
     },
+    Submitted: {
+      bg: "var(--vestra-gold-muted)",
+      color: "var(--vestra-gold)",
+    },
+    "Under Review": {
+      bg: "var(--vestra-gold-muted)",
+      color: "var(--vestra-gold)",
+    },
+    "Authentication Pending": {
+      bg: "var(--vestra-gold-muted)",
+      color: "var(--vestra-gold)",
+    },
     Sold: { bg: "rgba(42,94,255,0.12)", color: "#99B8FF" },
     Rented: { bg: "rgba(42,94,255,0.12)", color: "#99B8FF" },
   };
@@ -70,9 +84,19 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function Profile() {
   const { isAuthenticated, login, logout } = useAuth();
+  const { products, wishlist, orders, addresses, submissions, passports } =
+    useMarketplace();
   const [notifEmail, setNotifEmail] = useState(true);
   const [notifDeals, setNotifDeals] = useState(false);
   const [notifPassport, setNotifPassport] = useState(true);
+  const [activeTab, setActiveTab] = useState("collection");
+  const [settingsMessage, setSettingsMessage] = useState("");
+  const wishlistItems = products.filter((item) => wishlist.includes(item.id));
+  const purchasedItems = orders.flatMap((order) =>
+    order.items
+      .map((line) => products.find((item) => item.id === line.itemId))
+      .filter(Boolean),
+  );
 
   if (!isAuthenticated) {
     return (
@@ -135,7 +159,7 @@ export default function Profile() {
           Sign In with Internet Identity
         </button>
         <Link
-          to="/Collection"
+          to="/Archive"
           style={{
             fontFamily: "DM Sans, sans-serif",
             fontSize: "0.875rem",
@@ -304,6 +328,7 @@ export default function Profile() {
           >
             {[
               { icon: Package, label: "My Collection", tab: "collection" },
+              { icon: ShoppingBag, label: "Orders", tab: "orders" },
               { icon: Heart, label: "Wishlist", tab: "wishlist" },
               { icon: Tag, label: "My Listings", tab: "listings" },
               { icon: Shield, label: "Digital Passports", tab: "passports" },
@@ -330,6 +355,7 @@ export default function Profile() {
                   transition:
                     "background var(--dur-micro) var(--ease-luxury), color var(--dur-micro) var(--ease-luxury)",
                 }}
+                onClick={() => setActiveTab(tab)}
                 onMouseEnter={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
                     "var(--vestra-glass)";
@@ -352,7 +378,7 @@ export default function Profile() {
 
         {/* MAIN CONTENT */}
         <main data-ocid="profile.content.panel">
-          <Tabs defaultValue="collection">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList
               style={{
                 background: "var(--vestra-graphite)",
@@ -367,6 +393,7 @@ export default function Profile() {
             >
               {[
                 { value: "collection", label: "My Collection" },
+                { value: "orders", label: "Orders" },
                 { value: "wishlist", label: "Wishlist" },
                 { value: "listings", label: "My Listings" },
                 { value: "passports", label: "Passports" },
@@ -405,10 +432,153 @@ export default function Profile() {
                   gap: "1rem",
                 }}
               >
-                {MOCK_ITEMS.slice(0, 3).map((item, i) => (
-                  <ItemCard key={item.id} item={item} index={i} />
-                ))}
+                {(purchasedItems.length ? purchasedItems : []).map((item, i) =>
+                  item ? (
+                    <ItemCard key={item.id} item={item} index={i} />
+                  ) : null,
+                )}
               </div>
+              {purchasedItems.length === 0 && (
+                <div
+                  style={{
+                    border: "1px solid var(--vestra-border)",
+                    borderRadius: "12px",
+                    padding: "3rem 2rem",
+                    textAlign: "center",
+                    color: "var(--vestra-grey-light)",
+                  }}
+                >
+                  Your private collection will appear after your first confirmed
+                  order.
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="orders">
+              <h2
+                style={{
+                  fontFamily: "Playfair Display, Georgia, serif",
+                  fontSize: "1.4rem",
+                  fontWeight: 400,
+                  color: "var(--vestra-white)",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                Orders
+              </h2>
+              {orders.length === 0 ? (
+                <div
+                  style={{
+                    padding: "4rem 2rem",
+                    textAlign: "center",
+                    border: "1px solid var(--vestra-border)",
+                    borderRadius: "12px",
+                    color: "var(--vestra-grey-light)",
+                  }}
+                >
+                  No orders yet. Pieces you purchase will appear here with
+                  payment, shipping, and passport status.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                  }}
+                >
+                  {orders.map((order) => (
+                    <div
+                      key={order.id}
+                      style={{
+                        background: "var(--vestra-graphite)",
+                        border: "1px solid var(--vestra-border)",
+                        borderRadius: "10px",
+                        padding: "1rem",
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: "1rem",
+                          flexWrap: "wrap",
+                          marginBottom: "0.75rem",
+                        }}
+                      >
+                        <div>
+                          <p className="font-mono-vestra text-gold text-sm">
+                            {order.orderNumber}
+                          </p>
+                          <p style={{ color: "var(--vestra-grey-light)" }}>
+                            {order.items.map((line) => line.name).join(", ")}
+                          </p>
+                        </div>
+                        <StatusBadge status={order.status} />
+                      </div>
+                      <p
+                        style={{
+                          color: "var(--vestra-grey)",
+                          fontSize: "0.82rem",
+                        }}
+                      >
+                        Payment: {order.paymentStatus} · Shipping:{" "}
+                        {order.shippingMethod} · Tracking:{" "}
+                        {order.trackingNumber || "Not available"}
+                      </p>
+                      <details style={{ marginTop: "0.875rem" }}>
+                        <summary
+                          style={{
+                            color: "var(--vestra-gold)",
+                            cursor: "pointer",
+                            fontSize: "0.82rem",
+                          }}
+                        >
+                          View order details
+                        </summary>
+                        <div
+                          style={{
+                            marginTop: "0.875rem",
+                            borderTop: "1px solid var(--vestra-border)",
+                            paddingTop: "0.875rem",
+                            color: "var(--vestra-grey-light)",
+                            fontSize: "0.82rem",
+                            lineHeight: 1.7,
+                          }}
+                        >
+                          <p>
+                            Ship to: {order.shippingAddress.fullName},{" "}
+                            {order.shippingAddress.address},{" "}
+                            {order.shippingAddress.city},{" "}
+                            {order.shippingAddress.country}
+                          </p>
+                          <p>
+                            Billing: {order.billingAddress.fullName},{" "}
+                            {order.billingAddress.address},{" "}
+                            {order.billingAddress.city}
+                          </p>
+                          <p>
+                            Stripe reference:{" "}
+                            {order.stripePaymentId || "Pending"}
+                          </p>
+                          <ul
+                            style={{ marginTop: "0.5rem", paddingLeft: "1rem" }}
+                          >
+                            {order.items.map((line) => (
+                              <li key={`${order.id}-${line.itemId}`}>
+                                {line.brand} — {line.name}
+                                {line.passportId
+                                  ? ` · Passport ${line.passportId}`
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </details>
+                    </div>
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="wishlist">
@@ -423,51 +593,66 @@ export default function Profile() {
               >
                 Wishlist
               </h2>
-              <div
-                data-ocid="profile.wishlist.empty_state"
-                style={{
-                  padding: "4rem 2rem",
-                  textAlign: "center",
-                  border: "1px solid var(--vestra-border)",
-                  borderRadius: "12px",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "1rem",
-                }}
-              >
-                <Heart
-                  size={36}
-                  style={{ color: "var(--vestra-grey)", opacity: 0.5 }}
-                />
-                <p
+              {wishlistItems.length === 0 ? (
+                <div
+                  data-ocid="profile.wishlist.empty_state"
                   style={{
-                    fontFamily: "Playfair Display, Georgia, serif",
-                    fontSize: "1.15rem",
-                    fontWeight: 400,
-                    color: "var(--vestra-white)",
+                    padding: "4rem 2rem",
+                    textAlign: "center",
+                    border: "1px solid var(--vestra-border)",
+                    borderRadius: "12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "1rem",
                   }}
                 >
-                  Your wishlist is empty.
-                </p>
-                <p
+                  <Heart
+                    size={36}
+                    style={{ color: "var(--vestra-grey)", opacity: 0.5 }}
+                  />
+                  <p
+                    style={{
+                      fontFamily: "Playfair Display, Georgia, serif",
+                      fontSize: "1.15rem",
+                      fontWeight: 400,
+                      color: "var(--vestra-white)",
+                    }}
+                  >
+                    Your wishlist is empty.
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: "DM Sans, sans-serif",
+                      fontSize: "0.875rem",
+                      color: "var(--vestra-grey)",
+                    }}
+                  >
+                    Save pieces you love to find them again easily.
+                  </p>
+                  <Link
+                    to="/Archive"
+                    className="btn-outlined"
+                    style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}
+                    data-ocid="profile.wishlist_browse.link"
+                  >
+                    Explore Archive
+                  </Link>
+                </div>
+              ) : (
+                <div
                   style={{
-                    fontFamily: "DM Sans, sans-serif",
-                    fontSize: "0.875rem",
-                    color: "var(--vestra-grey)",
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(180px, 1fr))",
+                    gap: "1rem",
                   }}
                 >
-                  Save pieces you love to find them again easily.
-                </p>
-                <Link
-                  to="/Collection"
-                  className="btn-outlined"
-                  style={{ fontSize: "0.85rem", marginTop: "0.5rem" }}
-                  data-ocid="profile.wishlist_browse.link"
-                >
-                  Explore Collection
-                </Link>
-              </div>
+                  {wishlistItems.map((item, i) => (
+                    <ItemCard key={item.id} item={item} index={i} />
+                  ))}
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="listings">
@@ -492,7 +677,7 @@ export default function Profile() {
                   My Listings
                 </h2>
                 <Link
-                  to="/SubmitItem"
+                  to="/Sell"
                   className="btn-gold"
                   style={{
                     fontSize: "0.8rem",
@@ -513,59 +698,84 @@ export default function Profile() {
                   gap: "0.75rem",
                 }}
               >
-                {MOCK_LISTINGS.map((item, i) => (
-                  <div
-                    key={item.id}
-                    data-ocid={`profile.listing.item.${i + 1}`}
-                    style={{
-                      background: "var(--vestra-graphite)",
-                      border: "1px solid var(--vestra-border)",
-                      borderRadius: "10px",
-                      padding: "1rem",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "1rem",
-                    }}
-                  >
-                    <img
-                      src={item.images[0]}
-                      alt={item.name}
-                      loading="lazy"
+                {(submissions.length ? submissions : MOCK_LISTINGS).map(
+                  (item, i) => (
+                    <div
+                      key={item.id}
+                      data-ocid={`profile.listing.item.${i + 1}`}
                       style={{
-                        width: "52px",
-                        height: "52px",
-                        objectFit: "cover",
-                        borderRadius: "6px",
-                        flexShrink: 0,
+                        background: "var(--vestra-graphite)",
+                        border: "1px solid var(--vestra-border)",
+                        borderRadius: "10px",
+                        padding: "1rem",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "1rem",
                       }}
-                    />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p
-                        style={{
-                          fontFamily: "Playfair Display, Georgia, serif",
-                          fontSize: "0.95rem",
-                          color: "var(--vestra-white)",
-                          marginBottom: "0.2rem",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.name}
-                      </p>
-                      <p
-                        style={{
-                          fontFamily: "DM Sans, sans-serif",
-                          fontSize: "0.75rem",
-                          color: "var(--vestra-grey)",
-                        }}
-                      >
-                        {item.brand} · {item.submitted_at}
-                      </p>
+                    >
+                      {"images" in item && (
+                        <img
+                          src={item.images[0]}
+                          alt={item.name}
+                          loading="lazy"
+                          style={{
+                            width: "52px",
+                            height: "52px",
+                            objectFit: "cover",
+                            borderRadius: "6px",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      {!("images" in item) && (
+                        <div
+                          aria-hidden="true"
+                          style={{
+                            width: "52px",
+                            height: "52px",
+                            borderRadius: "6px",
+                            border: "1px solid var(--vestra-border)",
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p
+                          style={{
+                            fontFamily: "Playfair Display, Georgia, serif",
+                            fontSize: "0.95rem",
+                            color: "var(--vestra-white)",
+                            marginBottom: "0.2rem",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {item.name}
+                        </p>
+                        <p
+                          style={{
+                            fontFamily: "DM Sans, sans-serif",
+                            fontSize: "0.75rem",
+                            color: "var(--vestra-grey)",
+                          }}
+                        >
+                          {item.brand} ·{" "}
+                          {"submitted_at" in item
+                            ? item.submitted_at
+                            : item.createdAt}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        status={
+                          "listing_status" in item
+                            ? item.listing_status
+                            : item.status
+                        }
+                      />
                     </div>
-                    <StatusBadge status={item.listing_status} />
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             </TabsContent>
 
@@ -588,8 +798,8 @@ export default function Profile() {
                   gap: "0.75rem",
                 }}
               >
-                {MOCK_PASSPORTS.slice(0, 4).map((passport, i) => {
-                  const item = MOCK_ITEMS.find(
+                {passports.slice(0, 4).map((passport, i) => {
+                  const item = products.find(
                     (it) => it.id === passport.item_id,
                   );
                   return (
@@ -655,7 +865,7 @@ export default function Profile() {
                         </div>
                       </div>
                       <Link
-                        to="/DigitalPassport"
+                        to="/Passport"
                         search={{ id: passport.item_id }}
                         data-ocid={`profile.view_passport.link.${i + 1}`}
                         className="btn-outlined"
@@ -770,10 +980,91 @@ export default function Profile() {
                   type="button"
                   data-ocid="profile.save_profile.button"
                   className="btn-gold"
+                  onClick={() => {
+                    setSettingsMessage("Profile settings saved locally.");
+                    window.setTimeout(() => setSettingsMessage(""), 2500);
+                  }}
                   style={{ marginTop: "1.25rem", fontSize: "0.85rem" }}
                 >
                   Save Changes
                 </button>
+                {settingsMessage && (
+                  <output
+                    style={{
+                      color: "var(--vestra-verified)",
+                      fontSize: "0.82rem",
+                      marginTop: "0.75rem",
+                      display: "block",
+                    }}
+                  >
+                    {settingsMessage}
+                  </output>
+                )}
+              </div>
+
+              <div
+                style={{
+                  background: "var(--vestra-graphite)",
+                  border: "1px solid var(--vestra-border)",
+                  borderRadius: "12px",
+                  padding: "1.75rem",
+                  marginBottom: "1.5rem",
+                }}
+              >
+                <h3
+                  style={{
+                    fontFamily: "DM Sans, sans-serif",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--vestra-grey)",
+                    marginBottom: "1.25rem",
+                  }}
+                >
+                  Addresses
+                </h3>
+                {addresses.length === 0 ? (
+                  <p
+                    style={{
+                      color: "var(--vestra-grey-light)",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    Checkout addresses will appear here after an order is
+                    placed.
+                  </p>
+                ) : (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.75rem",
+                    }}
+                  >
+                    {addresses.map((address) => (
+                      <div
+                        key={address.id}
+                        style={{
+                          border: "1px solid var(--vestra-border)",
+                          borderRadius: "8px",
+                          padding: "0.875rem",
+                          color: "var(--vestra-grey-light)",
+                          fontSize: "0.85rem",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        <p style={{ color: "var(--vestra-white)" }}>
+                          {address.fullName}
+                        </p>
+                        <p>
+                          {address.address}, {address.city}, {address.postcode},{" "}
+                          {address.country}
+                        </p>
+                        <p>{address.email}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div

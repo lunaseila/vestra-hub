@@ -1,9 +1,13 @@
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { useAuth } from "@/hooks/useAuth";
-import { MOCK_ITEMS } from "@/types";
+import {
+  StripeConfigurationError,
+  createStripeCheckoutSession,
+  getStripeConfigurationMessage,
+} from "@/lib/commerceIntegrations";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowLeft,
-  CheckCircle,
   CreditCard,
   Lock,
   Package,
@@ -11,9 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-const SHIPPING_COST = 15;
-
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 
 interface ShippingForm {
   fullName: string;
@@ -48,31 +50,72 @@ const COUNTRIES = [
 
 export default function BuyItem() {
   const { isAuthenticated, login } = useAuth();
+  const { products, bagItems, createCheckoutDraft } = useMarketplace();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const search = useSearch({ strict: false }) as any;
   const navigate = useNavigate();
   const itemId = search?.id as string | undefined;
 
-  const item = MOCK_ITEMS.find((i) => i.id === itemId) ?? MOCK_ITEMS[0];
+  const checkoutItems = itemId
+    ? products.filter((i) => i.id === itemId)
+    : bagItems;
   const [step, setStep] = useState<Step>(1);
   const [form, setForm] = useState<ShippingForm>(EMPTY_FORM);
-  const [orderNum] = useState(
-    () => `VTR-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
-  );
+  const [checkoutError, setCheckoutError] = useState("");
+  const [isStartingPayment, setIsStartingPayment] = useState(false);
 
-  const priceEur = item.price_buy ? item.price_buy / 100 : 0;
-  const total = priceEur + SHIPPING_COST;
+  const subtotal = checkoutItems.reduce(
+    (sum, checkoutItem) => sum + (checkoutItem.price_buy ?? 0),
+    0,
+  );
+  const total = subtotal;
 
   const fmt = (cents: number) =>
     `€${(cents / 100).toLocaleString("en-EU", { minimumFractionDigits: 0 })}`;
-  const fmtEur = (eur: number) =>
-    `€${eur.toLocaleString("en-EU", { minimumFractionDigits: 0 })}`;
-
   const handleField = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const isFormValid = Object.values(form).every((v) => v.trim().length > 0);
+
+  const handleStartStripeCheckout = async () => {
+    setCheckoutError("");
+    setIsStartingPayment(true);
+    try {
+      const draft = createCheckoutDraft({
+        itemId,
+        shippingAddress: { ...form, isDefault: true },
+      });
+      const origin = window.location.origin;
+      const redirectUrl = await createStripeCheckoutSession({
+        checkoutId: draft.id,
+        customerEmail: form.email,
+        successUrl: `${origin}/CheckoutSuccess`,
+        cancelUrl: `${origin}/CheckoutCancelled`,
+        items: checkoutItems.map((checkoutItem) => ({
+          id: checkoutItem.id,
+          name: checkoutItem.name,
+          brand: checkoutItem.brand,
+          price: checkoutItem.price_buy ?? 0,
+          image: checkoutItem.images[0],
+        })),
+        metadata: {
+          itemIds: draft.itemIds.join(","),
+          vestraCheckoutId: draft.id,
+        },
+      });
+      window.location.assign(redirectUrl);
+    } catch (error) {
+      setCheckoutError(
+        error instanceof StripeConfigurationError
+          ? getStripeConfigurationMessage()
+          : error instanceof Error
+            ? error.message
+            : "Unable to start secure Stripe checkout. Please try again.",
+      );
+      setIsStartingPayment(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -101,13 +144,39 @@ export default function BuyItem() {
     );
   }
 
+  if (checkoutItems.length === 0) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: "var(--vestra-ink)" }}
+      >
+        <div className="text-center space-y-6 max-w-sm p-8">
+          <ShoppingBag size={40} className="text-gold mx-auto" />
+          <h2 className="font-playfair text-2xl text-vestra-white">
+            Your bag is empty
+          </h2>
+          <p className="text-vestra-grey-light text-sm">
+            Add an authenticated piece before entering checkout.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/Archive" })}
+            className="btn-gold w-full"
+          >
+            Explore Archive
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen" style={{ background: "var(--vestra-ink)" }}>
       <div className="max-w-2xl mx-auto px-4 py-12">
         {/* Progress Bar */}
         <div className="mb-10" data-ocid="buy.progress">
           <div className="flex items-center gap-3 mb-3">
-            {([1, 2, 3] as Step[]).map((s) => (
+            {([1, 2] as Step[]).map((s) => (
               <div
                 key={s}
                 className="flex items-center gap-3 flex-1 last:flex-none"
@@ -138,10 +207,10 @@ export default function BuyItem() {
                           : "var(--vestra-grey)",
                     }}
                   >
-                    {s === 1 ? "Review" : s === 2 ? "Shipping" : "Confirm"}
+                    {s === 1 ? "Review" : "Payment"}
                   </span>
                 </div>
-                {s < 3 && (
+                {s < 2 && (
                   <div
                     className="flex-1 h-px transition-luxury"
                     style={{
@@ -170,63 +239,77 @@ export default function BuyItem() {
               </h1>
             </div>
 
-            <div className="vestra-card p-5" data-ocid="buy.item_card">
-              <div className="flex gap-4">
-                <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                  <img
-                    src={item.images[0]}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-label text-gold mb-1">{item.brand}</p>
-                  <h3 className="font-playfair text-vestra-white text-lg leading-tight">
-                    {item.name}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span
-                      className="text-xs px-2 py-0.5 rounded font-mono-vestra"
-                      style={{
-                        background: "var(--vestra-graphite)",
-                        color: "var(--vestra-grey-light)",
-                        border: "1px solid var(--vestra-border)",
-                      }}
-                    >
-                      {item.condition}
-                    </span>
+            <div
+              className="vestra-card p-5 space-y-4"
+              data-ocid="buy.item_card"
+            >
+              {checkoutItems.map((checkoutItem) => (
+                <div key={checkoutItem.id} className="flex gap-4">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                    <img
+                      src={checkoutItem.images[0]}
+                      alt={checkoutItem.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-label text-gold mb-1">
+                      {checkoutItem.brand}
+                    </p>
+                    <h3 className="font-playfair text-vestra-white text-lg leading-tight">
+                      {checkoutItem.name}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span
+                        className="text-xs px-2 py-0.5 rounded font-mono-vestra"
+                        style={{
+                          background: "var(--vestra-graphite)",
+                          color: "var(--vestra-grey-light)",
+                          border: "1px solid var(--vestra-border)",
+                        }}
+                      >
+                        {checkoutItem.condition}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="font-playfair italic text-xl text-vestra-white">
+                      {checkoutItem.price_buy
+                        ? fmt(checkoutItem.price_buy)
+                        : "N/A"}
+                    </p>
                   </div>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="font-playfair italic text-xl text-vestra-white">
-                    {item.price_buy ? fmt(item.price_buy) : "N/A"}
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
 
             <div className="vestra-card p-5 space-y-3">
               <div className="flex items-center gap-2 text-sm text-vestra-grey-light">
                 <Package size={14} className="text-gold" />
-                <span>Estimated delivery in 3–5 business days</span>
+                <span>
+                  Shipping method, timing and cost require provider
+                  configuration
+                </span>
               </div>
               <div className="section-divider pt-3 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span style={{ color: "var(--vestra-grey-light)" }}>
                     Item
                   </span>
-                  <span className="text-vestra-white">{fmtEur(priceEur)}</span>
+                  <span className="text-vestra-white">{fmt(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span style={{ color: "var(--vestra-grey-light)" }}>
                     Shipping
                   </span>
-                  <span className="text-vestra-white">€{SHIPPING_COST}</span>
+                  <span className="text-vestra-white">
+                    Calculated by provider
+                  </span>
                 </div>
                 <div className="flex justify-between section-divider pt-3">
                   <span className="font-playfair text-vestra-white">Total</span>
                   <span className="font-playfair italic text-xl text-gold">
-                    {fmtEur(total)}
+                    {fmt(total)}
                   </span>
                 </div>
               </div>
@@ -378,7 +461,7 @@ export default function BuyItem() {
                   className="text-sm"
                   style={{ color: "var(--vestra-grey)" }}
                 >
-                  Card number
+                  Stripe Payment Element
                 </span>
                 <div className="ml-auto flex gap-1.5">
                   {["VISA", "MC", "AMEX"].map((card) => (
@@ -396,37 +479,26 @@ export default function BuyItem() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div
-                  className="rounded-lg p-4 flex items-center"
-                  style={{
-                    border: "1px solid var(--vestra-border)",
-                    minHeight: "52px",
-                  }}
-                >
-                  <span
-                    className="text-sm"
-                    style={{ color: "var(--vestra-grey)" }}
-                  >
-                    MM / YY
-                  </span>
-                </div>
-                <div
-                  className="rounded-lg p-4 flex items-center"
-                  style={{
-                    border: "1px solid var(--vestra-border)",
-                    minHeight: "52px",
-                  }}
-                >
-                  <span
-                    className="text-sm"
-                    style={{ color: "var(--vestra-grey)" }}
-                  >
-                    CVC
-                  </span>
-                </div>
-              </div>
+              <p
+                className="text-sm"
+                style={{ color: "var(--vestra-grey-light)" }}
+              >
+                Payment is completed through Stripe Checkout. Vestra creates the
+                Checkout Session server-side, redirects you to Stripe, and the
+                deployed webhook verifies payment before production fulfillment.
+              </p>
+              <p className="text-xs" style={{ color: "var(--vestra-grey)" }}>
+                Required configuration: VITE_CHECKOUT_API_BASE_URL,
+                STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and webhook
+                deployment.
+              </p>
             </div>
+
+            {checkoutError && (
+              <p role="alert" className="text-sm" style={{ color: "#ff9b9b" }}>
+                {checkoutError}
+              </p>
+            )}
 
             <div className="flex gap-3">
               <button
@@ -440,116 +512,16 @@ export default function BuyItem() {
               <button
                 type="button"
                 className="btn-gold flex-1"
-                onClick={() => setStep(3)}
-                disabled={!isFormValid}
-                style={{ opacity: isFormValid ? 1 : 0.45 }}
+                onClick={handleStartStripeCheckout}
+                disabled={!isFormValid || isStartingPayment}
+                style={{
+                  opacity: isFormValid && !isStartingPayment ? 1 : 0.45,
+                }}
                 data-ocid="buy.place_order_button"
               >
-                Place Order — {fmtEur(total)}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3 — Confirmation */}
-        {step === 3 && (
-          <div
-            className="text-center space-y-8 animate-luxury-reveal py-8"
-            data-ocid="buy.step3"
-          >
-            <div className="flex justify-center">
-              <svg
-                width="90"
-                height="90"
-                viewBox="0 0 90 90"
-                fill="none"
-                role="img"
-                aria-label="Order confirmed"
-              >
-                <circle
-                  cx="45"
-                  cy="45"
-                  r="40"
-                  stroke="var(--vestra-gold)"
-                  strokeWidth="2"
-                  opacity="0.25"
-                />
-                <circle
-                  cx="45"
-                  cy="45"
-                  r="40"
-                  stroke="var(--vestra-gold)"
-                  strokeWidth="2"
-                  strokeDasharray="251"
-                  strokeDashoffset="0"
-                  style={{
-                    animation: "draw-check 1.5s var(--ease-reveal) forwards",
-                  }}
-                  strokeLinecap="round"
-                  transform="rotate(-90 45 45)"
-                />
-                <path
-                  d="M28 46L40 58L63 33"
-                  stroke="var(--vestra-gold)"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeDasharray="60"
-                  strokeDashoffset="60"
-                  style={{
-                    animation:
-                      "draw-check 0.8s 0.6s var(--ease-reveal) forwards",
-                  }}
-                />
-              </svg>
-            </div>
-
-            <div className="space-y-3">
-              <h1 className="font-playfair text-4xl text-vestra-white">
-                Your piece is on its way.
-              </h1>
-              <p
-                className="text-sm max-w-md mx-auto"
-                style={{ color: "var(--vestra-grey-light)" }}
-              >
-                Your {item.brand} {item.name} will be carefully prepared,
-                authenticated, and dispatched within 24 hours.
-              </p>
-            </div>
-
-            <div
-              className="vestra-card p-5 inline-block text-left space-y-2"
-              style={{ minWidth: "260px" }}
-            >
-              <p className="text-label" style={{ color: "var(--vestra-grey)" }}>
-                Order Reference
-              </p>
-              <p className="font-mono-vestra text-xl text-gold">{orderNum}</p>
-              <p className="text-xs" style={{ color: "var(--vestra-grey)" }}>
-                Keep this for your records
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <button
-                type="button"
-                className="btn-gold"
-                onClick={() =>
-                  navigate({ to: `/DigitalPassport?id=${item.passport_id}` })
-                }
-                data-ocid="buy.view_passport_button"
-              >
-                <CheckCircle size={14} className="mr-2" />
-                View Digital Passport
-              </button>
-              <button
-                type="button"
-                className="btn-outlined"
-                onClick={() => navigate({ to: "/Collection" })}
-                data-ocid="buy.continue_shopping_button"
-              >
-                <ShoppingBag size={14} className="mr-2" />
-                Continue Shopping
+                {isStartingPayment
+                  ? "Starting Secure Payment..."
+                  : `Continue to Stripe — ${fmt(total)}`}
               </button>
             </div>
           </div>

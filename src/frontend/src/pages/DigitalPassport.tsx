@@ -1,4 +1,6 @@
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { Link } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 
 const TIMELINE_STEPS = [
   { num: "①", label: "Submitted by Seller" },
@@ -7,32 +9,20 @@ const TIMELINE_STEPS = [
   { num: "④", label: "Listed for Sale" },
 ];
 
-const CERTIFICATE_ITEM = {
-  id: "N17639",
-  name: "Items N17639",
-  brand: "Brand",
-  collection: "Collection",
-  category: "Type",
-  condition: "Condition",
-};
-
-const CERTIFICATE_PASSPORT = {
-  id: "pp-N17639",
-  item_id: "N17639",
-  authentication_date: "",
-  inspector_name: "",
-  certificate_code: "",
-  condition_verified: "",
-  qr_code_url: "",
-  blockchain_hash: "",
-  created_at: "",
-};
-
 export default function DigitalPassport() {
-  const passport = CERTIFICATE_PASSPORT;
-  const item = CERTIFICATE_ITEM;
+  const search = useSearch({ strict: false }) as { id?: string };
+  const { products, passports, getPassportForItem } = useMarketplace();
+  const passport =
+    passports.find(
+      (p) => p.id === search.id || p.certificate_code === search.id,
+    ) ?? getPassportForItem(search.id);
+  const item =
+    products.find((p) => p.id === passport?.item_id) ??
+    products.find((p) => p.id === search.id) ??
+    products[0];
+  const passportIssued = Boolean(passport);
 
-  const formattedDate = passport.authentication_date
+  const formattedDate = passport?.authentication_date
     ? new Date(passport.authentication_date).toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
@@ -127,9 +117,10 @@ export default function DigitalPassport() {
               margin: "0 auto",
             }}
           >
-            Every piece authenticated by Vestra receives a Digital Passport — a
-            permanent, verifiable record of its provenance, condition, and
-            journey. It cannot be forged, lost, or disputed.
+            Every piece authenticated by Vestra can receive a Digital Passport —
+            a structured record of available provenance, condition, materials,
+            and ownership context. Missing details are shown as unavailable
+            rather than inferred.
           </p>
         </div>
 
@@ -329,7 +320,7 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                {item.collection}
+                {item.season || "—"}
               </span>
             </div>
 
@@ -391,7 +382,7 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                Verified
+                {passportIssued ? "Verified" : "Not issued"}
               </span>
             </div>
 
@@ -423,7 +414,7 @@ export default function DigitalPassport() {
                   letterSpacing: "0.04em",
                 }}
               >
-                {passport.certificate_code || "—"}
+                {passport?.certificate_code || passport?.id || "—"}
               </span>
             </div>
 
@@ -486,7 +477,7 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                {passport.inspector_name || "—"}
+                {passport?.inspector_name || "—"}
               </span>
             </div>
 
@@ -515,9 +506,53 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                {passport.condition_verified || item.condition}
+                {passport?.condition_verified || item.condition}
               </span>
             </div>
+
+            {[
+              ["Materials", item.material || "Not provided"],
+              ["Seller", item.seller_id || "Not provided"],
+              ["Provenance", "Not provided"],
+              [
+                "Ownership",
+                passportIssued ? "Available after purchase" : "Not available",
+              ],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  borderTop: "1px solid rgba(196,169,125,0.12)",
+                  paddingTop: "0.75rem",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontSize: "0.7rem",
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color: "var(--vestra-grey)",
+                  }}
+                >
+                  {label}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "'Playfair Display', Georgia, serif",
+                    fontSize: "0.95rem",
+                    color: "var(--vestra-white)",
+                    textAlign: "right",
+                    maxWidth: "55%",
+                  }}
+                >
+                  {value}
+                </span>
+              </div>
+            ))}
           </div>
 
           {/* Certificate Footer */}
@@ -697,7 +732,7 @@ export default function DigitalPassport() {
 
         {/* CTA */}
         <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
-          <Link to="/Collection">
+          <Link to="/Archive">
             <button
               type="button"
               data-ocid="passport.shop_similar_button"

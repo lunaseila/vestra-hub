@@ -1,4 +1,6 @@
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 
 const COLUMNS = [
   {
@@ -10,34 +12,49 @@ const COLUMNS = [
     heading: "Shop",
     isWordmark: false,
     links: [
-      { label: "Collection", to: "/Collection" },
-      { label: "Submit Item", to: "/SubmitItem" },
-      { label: "Submit an Art Piece", to: "/SubmitItem?type=art" },
+      { label: "Archive", to: "/Archive" },
+      { label: "Search", to: "/Search" },
+      { label: "Bag", to: "/Bag" },
     ],
   },
   {
     heading: "Discover",
     isWordmark: false,
     links: [
-      { label: "Digital Passport", to: "/DigitalPassport" },
-      { label: "Personality Test", to: "/PersonalityTest" },
-      { label: "Sage Purification", to: "/SagePurification" },
+      { label: "Sell on Vestra", to: "/Sell" },
+      { label: "Digital Passport", to: "/Passport" },
+      { label: "Community Preview", to: "/CommunityHub" },
     ],
   },
   {
     heading: "Legal",
     isWordmark: false,
     links: [
-      { label: "About", to: "/About" },
+      { label: "Privacy", to: "/PrivacyPolicy" },
+      { label: "Terms", to: "/Terms" },
+      { label: "Returns", to: "/Returns" },
+      { label: "Shipping", to: "/ShippingPolicy" },
+      { label: "Seller Terms", to: "/SellerTerms" },
+      { label: "Authentication", to: "/AuthenticationPolicy" },
+      { label: "FAQ", to: "/FAQ" },
       { label: "Contact", to: "/Contact" },
-      { label: "Privacy", to: "/Contact" },
     ],
   },
 ];
 
 export default function Footer() {
   const year = new Date().getFullYear();
-  const utm = `https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== "undefined" ? window.location.hostname : "")}`;
+  const { captureInquiry } = useMarketplace();
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterSaved, setNewsletterSaved] = useState(false);
+
+  const handleNewsletterSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newsletterEmail.trim()) return;
+    captureInquiry({ type: "newsletter", email: newsletterEmail.trim() });
+    setNewsletterSaved(true);
+    setNewsletterEmail("");
+  };
 
   return (
     <footer
@@ -102,6 +119,74 @@ export default function Footer() {
                   <br />
                   Own the Future.
                 </p>
+                <form
+                  onSubmit={handleNewsletterSubmit}
+                  style={{
+                    marginTop: "1.5rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.65rem",
+                    maxWidth: "240px",
+                  }}
+                  data-ocid="footer.newsletter_form"
+                >
+                  <label
+                    htmlFor="footer-newsletter"
+                    style={{
+                      fontFamily:
+                        "'Helvetica Neue', Helvetica, Arial, sans-serif",
+                      fontSize: "0.65rem",
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: "var(--vestra-grey)",
+                    }}
+                  >
+                    Private archive notes
+                  </label>
+                  <input
+                    id="footer-newsletter"
+                    type="email"
+                    required
+                    value={newsletterEmail}
+                    onChange={(event) => {
+                      setNewsletterEmail(event.target.value);
+                      setNewsletterSaved(false);
+                    }}
+                    placeholder="email@example.com"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid var(--vestra-border)",
+                      color: "var(--vestra-white)",
+                      padding: "0.65rem 0.75rem",
+                      fontSize: "0.82rem",
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid var(--vestra-gold)",
+                      color: "var(--vestra-gold)",
+                      padding: "0.6rem 0.75rem",
+                      fontSize: "0.72rem",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Subscribe
+                  </button>
+                  {newsletterSaved && (
+                    <p
+                      style={{
+                        color: "var(--vestra-verified)",
+                        fontSize: "0.75rem",
+                      }}
+                    >
+                      Saved for CRM/email sync.
+                    </p>
+                  )}
+                </form>
               </>
             ) : (
               <>
@@ -192,15 +277,8 @@ export default function Footer() {
             color: "var(--vestra-grey)",
           }}
         >
-          Built with love using{" "}
-          <a
-            href={utm}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "var(--vestra-gold)", textDecoration: "none" }}
-          >
-            caffeine.ai
-          </a>
+          Community is an experimental preview. Commerce services require
+          production credentials before launch.
         </p>
       </div>
     </footer>

@@ -1,6 +1,7 @@
 import ItemCard from "@/components/shared/ItemCard";
-import { MOCK_ITEMS } from "@/types";
+import { useMarketplace } from "@/context/MarketplaceContext";
 import type { ItemCondition } from "@/types";
+import { useSearch } from "@tanstack/react-router";
 import { SlidersHorizontal, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -31,6 +32,8 @@ const CONDITIONS: ItemCondition[] = [
   "Very Good",
   "Good",
 ];
+const SIZES = ["All", "XS", "S", "M", "L", "EU 38", "EU 39", "EU 40"];
+const ERAS = ["All", "2010s", "2020s"];
 const SORT_OPTIONS = ["Newest", "Price ↑", "Price ↓"];
 const PAGE_SIZE = 8;
 
@@ -38,26 +41,42 @@ interface Filters {
   category: string;
   brands: string[];
   conditions: ItemCondition[];
+  size: string;
+  era: string;
   minPrice: number;
   maxPrice: number;
+  query: string;
 }
 
 const defaultFilters: Filters = {
   category: "All",
   brands: [],
   conditions: [],
+  size: "All",
+  era: "All",
   minPrice: 0,
   maxPrice: 25000,
+  query: "",
 };
 
+function getEra(year: number) {
+  const decade = Math.floor(year / 10) * 10;
+  return `${decade}s`;
+}
+
 export default function Collection() {
-  const [filters, setFilters] = useState<Filters>(defaultFilters);
+  const search = useSearch({ strict: false }) as { q?: string };
+  const { products } = useMarketplace();
+  const [filters, setFilters] = useState<Filters>({
+    ...defaultFilters,
+    query: search.q ?? "",
+  });
   const [sort, setSort] = useState("Newest");
   const [page, setPage] = useState(1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const filtered = useMemo(() => {
-    let result = [...MOCK_ITEMS];
+    let result = [...products];
 
     if (filters.category !== "All") {
       result = result.filter((i) => i.category === filters.category);
@@ -67,6 +86,32 @@ export default function Collection() {
     }
     if (filters.conditions.length) {
       result = result.filter((i) => filters.conditions.includes(i.condition));
+    }
+    if (filters.size !== "All") {
+      result = result.filter((i) =>
+        i.measurements.toLowerCase().includes(filters.size.toLowerCase()),
+      );
+    }
+    if (filters.era !== "All") {
+      result = result.filter((i) => getEra(i.year) === filters.era);
+    }
+    if (filters.query.trim()) {
+      const q = filters.query.trim().toLowerCase();
+      result = result.filter((i) =>
+        [
+          i.name,
+          i.brand,
+          i.category,
+          i.condition,
+          i.material,
+          i.measurements,
+          i.description,
+          i.year.toString(),
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(q),
+      );
     }
     result = result.filter((i) => {
       const priceK = (i.price_buy ?? 0) / 100;
@@ -81,7 +126,7 @@ export default function Collection() {
       result.sort((a, b) => b.created_at.localeCompare(a.created_at));
 
     return result;
-  }, [filters, sort]);
+  }, [filters, products, sort]);
 
   const visible = filtered.slice(0, page * PAGE_SIZE);
   const canLoadMore = visible.length < filtered.length;
@@ -110,7 +155,10 @@ export default function Collection() {
   const hasActiveFilters =
     filters.category !== "All" ||
     filters.brands.length > 0 ||
-    filters.conditions.length > 0;
+    filters.conditions.length > 0 ||
+    filters.size !== "All" ||
+    filters.era !== "All" ||
+    filters.query.trim().length > 0;
 
   const sidebarContent = (
     <div
@@ -246,6 +294,72 @@ export default function Collection() {
             </label>
           ))}
         </div>
+      </div>
+
+      {/* Size */}
+      <div style={{ marginBottom: "2rem" }}>
+        <p
+          className="text-label"
+          style={{ color: "var(--vestra-grey)", marginBottom: "0.75rem" }}
+        >
+          Size
+        </p>
+        <select
+          value={filters.size}
+          onChange={(e) => {
+            setFilters((f) => ({ ...f, size: e.target.value }));
+            setPage(1);
+          }}
+          data-ocid="collection.size_filter"
+          style={{
+            width: "100%",
+            padding: "0.55rem 0.75rem",
+            background: "var(--vestra-ink)",
+            border: "1px solid var(--vestra-border)",
+            color: "var(--vestra-white)",
+            borderRadius: "6px",
+            fontFamily: "DM Sans",
+          }}
+        >
+          {SIZES.map((size) => (
+            <option key={size} value={size}>
+              {size}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Era */}
+      <div style={{ marginBottom: "2rem" }}>
+        <p
+          className="text-label"
+          style={{ color: "var(--vestra-grey)", marginBottom: "0.75rem" }}
+        >
+          Era
+        </p>
+        <select
+          value={filters.era}
+          onChange={(e) => {
+            setFilters((f) => ({ ...f, era: e.target.value }));
+            setPage(1);
+          }}
+          data-ocid="collection.era_filter"
+          style={{
+            width: "100%",
+            padding: "0.55rem 0.75rem",
+            background: "var(--vestra-ink)",
+            border: "1px solid var(--vestra-border)",
+            color: "var(--vestra-white)",
+            borderRadius: "6px",
+            fontFamily: "DM Sans",
+          }}
+        >
+          {ERAS.map((era) => (
+            <option key={era} value={era}>
+              {era}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Condition */}
@@ -384,8 +498,33 @@ export default function Collection() {
               color: "var(--vestra-white)",
             }}
           >
-            Collection
+            Archive
           </h1>
+          <div style={{ marginTop: "1.5rem", maxWidth: "620px" }}>
+            <label htmlFor="archive-search" className="sr-only">
+              Search archive
+            </label>
+            <input
+              id="archive-search"
+              value={filters.query}
+              onChange={(event) => {
+                setFilters((f) => ({ ...f, query: event.target.value }));
+                setPage(1);
+              }}
+              placeholder="Search brand, material, size, era, condition..."
+              data-ocid="collection.search_input"
+              style={{
+                width: "100%",
+                padding: "0.9rem 1rem",
+                borderRadius: "0",
+                background: "transparent",
+                border: "1px solid var(--vestra-border)",
+                color: "var(--vestra-white)",
+                fontFamily: "DM Sans",
+                outline: "none",
+              }}
+            />
+          </div>
         </div>
 
         {/* Mobile filter toggle — only visible on mobile */}
