@@ -1,5 +1,6 @@
 import Footer from "@/components/layout/Footer";
 import NavBar from "@/components/layout/NavBar";
+import { MarketplaceProvider } from "@/context/MarketplaceContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -13,15 +14,18 @@ import {
 } from "@tanstack/react-router";
 
 import About from "@/pages/About";
+import Bag from "@/pages/Bag";
 import BuyItem from "@/pages/BuyItem";
 import Collection from "@/pages/Collection";
 import Contact from "@/pages/Contact";
 import DigitalPassport from "@/pages/DigitalPassport";
 import Home from "@/pages/Home";
 import ItemDetail from "@/pages/ItemDetail";
+import LegalPage from "@/pages/LegalPage";
 import PersonalityTest from "@/pages/PersonalityTest";
 import Profile from "@/pages/Profile";
 import SagePurification from "@/pages/SagePurification";
+import SearchPage from "@/pages/SearchPage";
 import SubmitItem from "@/pages/SubmitItem";
 import VirtualFittingRoom from "@/pages/VirtualFittingRoom";
 import WhatIsVestra from "@/pages/WhatIsVestra";
@@ -114,14 +118,34 @@ const collectionRoute = createRoute({
   path: "/Collection",
   component: Collection,
 });
+const archiveRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Archive",
+  component: Collection,
+});
+const discoverRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Discover",
+  component: Collection,
+});
 const itemRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/Item",
   component: ItemDetail,
 });
+const searchRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Search",
+  component: SearchPage,
+});
 const passportRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/DigitalPassport",
+  component: DigitalPassport,
+});
+const passportAliasRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Passport",
   component: DigitalPassport,
 });
 const buyRoute = createRoute({
@@ -129,9 +153,24 @@ const buyRoute = createRoute({
   path: "/BuyItem",
   component: BuyItem,
 });
+const checkoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Checkout",
+  component: BuyItem,
+});
+const bagRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Bag",
+  component: Bag,
+});
 const submitItemRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/SubmitItem",
+  component: SubmitItem,
+});
+const sellRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Sell",
   component: SubmitItem,
 });
 const personalityRoute = createRoute({
@@ -154,6 +193,11 @@ const profileRoute = createRoute({
   path: "/Profile",
   component: Profile,
 });
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Account",
+  component: Profile,
+});
 const whatIsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/WhatIsVestra",
@@ -173,6 +217,41 @@ const cookiePolicyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/CookiePolicy",
   component: CookiePolicy,
+});
+const privacyPolicyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/PrivacyPolicy",
+  component: () => <LegalPage type="privacy" />,
+});
+const termsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Terms",
+  component: () => <LegalPage type="terms" />,
+});
+const returnsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/Returns",
+  component: () => <LegalPage type="returns" />,
+});
+const shippingPolicyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/ShippingPolicy",
+  component: () => <LegalPage type="shipping" />,
+});
+const sellerTermsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/SellerTerms",
+  component: () => <LegalPage type="seller" />,
+});
+const authenticationPolicyRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/AuthenticationPolicy",
+  component: () => <LegalPage type="authentication" />,
+});
+const faqRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/FAQ",
+  component: () => <LegalPage type="faq" />,
 });
 // ---------------------------------------------------------------------------
 // Community Hub — separate layout, no Vestra NavBar/Footer
@@ -244,18 +323,33 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   homeRoute,
   collectionRoute,
+  archiveRoute,
+  discoverRoute,
   itemRoute,
+  searchRoute,
   passportRoute,
+  passportAliasRoute,
   buyRoute,
+  checkoutRoute,
+  bagRoute,
   submitItemRoute,
+  sellRoute,
   personalityRoute,
   fittingRoomRoute,
   sageRoute,
   profileRoute,
+  accountRoute,
   whatIsRoute,
   aboutRoute,
   contactRoute,
   cookiePolicyRoute,
+  privacyPolicyRoute,
+  termsRoute,
+  returnsRoute,
+  shippingPolicyRoute,
+  sellerTermsRoute,
+  authenticationPolicyRoute,
+  faqRoute,
   // Community Hub routes (separate namespace, separate layout)
   chParentRoute.addChildren([
     chRedirectRoute,
@@ -281,7 +375,9 @@ declare module "@tanstack/react-router" {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <MarketplaceProvider>
+        <RouterProvider router={router} />
+      </MarketplaceProvider>
     </QueryClientProvider>
   );
 }

@@ -1,19 +1,20 @@
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { Link } from "@tanstack/react-router";
 import { Heart, Menu, Search, ShoppingBag, User, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const NAV_LINKS = [
-  { label: "Vestra Home", to: "/Home" },
-  { label: "Collection", to: "/Collection" },
-  { label: "Community Hub", to: "/CommunityHub" },
-  { label: "Submit an Item", to: "/SubmitItem" },
-  { label: "Digital Passport", to: "/DigitalPassport" },
-  { label: "About", to: "/About" },
+  { label: "Archive", to: "/Archive", secondary: false },
+  { label: "Discover", to: "/Discover", secondary: false },
+  { label: "Sell", to: "/Sell", secondary: false },
+  { label: "Passport", to: "/Passport", secondary: false },
+  { label: "Community", to: "/CommunityHub", secondary: true },
 ];
 
 export default function NavBar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { bagCount, wishlist } = useMarketplace();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 50);
@@ -56,8 +57,23 @@ export default function NavBar() {
           transition: "border-color 350ms var(--ease-luxury)",
         }}
       >
-        {/* Logo placeholder — wordmark removed */}
-        <div style={{ flexShrink: 0, width: "24px" }} />
+        <Link
+          to="/Home"
+          aria-label="Vestra home"
+          data-ocid="nav.logo_link"
+          style={{
+            flexShrink: 0,
+            color: "var(--vestra-white)",
+            textDecoration: "none",
+            fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+            fontSize: "0.9rem",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            width: "86px",
+          }}
+        >
+          VESTRA
+        </Link>
 
         {/* Center Links */}
         <div className="hidden md:flex" style={{ gap: "2.5rem" }}>
@@ -70,7 +86,9 @@ export default function NavBar() {
                 fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
                 fontSize: "0.875rem",
                 letterSpacing: "0.02em",
-                color: "var(--vestra-grey-light)",
+                color: link.secondary
+                  ? "var(--vestra-grey)"
+                  : "var(--vestra-grey-light)",
                 textDecoration: "none",
                 transition: "color 300ms var(--ease-luxury)",
               }}
@@ -94,37 +112,83 @@ export default function NavBar() {
           style={{ gap: "1.25rem", alignItems: "center" }}
         >
           {[
-            { icon: Search, ocid: "nav.search_button", label: "Search" },
-            { icon: Heart, ocid: "nav.wishlist_button", label: "Wishlist" },
-            { icon: User, ocid: "nav.profile_button", label: "Profile" },
-            { icon: ShoppingBag, ocid: "nav.cart_button", label: "Cart" },
-          ].map(({ icon: Icon, ocid, label }) => (
-            <button
+            {
+              icon: Search,
+              ocid: "nav.search_button",
+              label: "Search",
+              to: "/Search",
+              count: 0,
+            },
+            {
+              icon: Heart,
+              ocid: "nav.wishlist_button",
+              label: "Wishlist",
+              to: "/Account",
+              count: wishlist.length,
+            },
+            {
+              icon: User,
+              ocid: "nav.profile_button",
+              label: "Account",
+              to: "/Account",
+              count: 0,
+            },
+            {
+              icon: ShoppingBag,
+              ocid: "nav.cart_button",
+              label: "Bag",
+              to: "/Bag",
+              count: bagCount,
+            },
+          ].map(({ icon: Icon, ocid, label, to, count }) => (
+            <Link
               key={ocid}
-              type="button"
+              to={to}
               aria-label={label}
               data-ocid={ocid}
               style={{
+                position: "relative",
                 background: "none",
-                border: "none",
-                cursor: "pointer",
                 color: "var(--vestra-grey-light)",
                 display: "flex",
                 alignItems: "center",
                 padding: "4px",
                 transition: "color 300ms var(--ease-luxury)",
+                textDecoration: "none",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color =
+                (e.currentTarget as HTMLAnchorElement).style.color =
                   "var(--vestra-white)";
               }}
               onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color =
+                (e.currentTarget as HTMLAnchorElement).style.color =
                   "var(--vestra-grey-light)";
               }}
             >
               <Icon size={20} />
-            </button>
+              {count > 0 && (
+                <span
+                  aria-label={`${count} ${label.toLowerCase()} items`}
+                  style={{
+                    position: "absolute",
+                    top: "-6px",
+                    right: "-7px",
+                    minWidth: "16px",
+                    height: "16px",
+                    borderRadius: "50%",
+                    background: "var(--vestra-gold)",
+                    color: "var(--vestra-black)",
+                    fontSize: "0.62rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: "JetBrains Mono, monospace",
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </Link>
           ))}
         </div>
 
@@ -198,7 +262,9 @@ export default function NavBar() {
                 style={{
                   fontFamily: "Playfair Display",
                   fontSize: "2rem",
-                  color: "var(--vestra-gold)",
+                  color: link.secondary
+                    ? "var(--vestra-grey-light)"
+                    : "var(--vestra-gold)",
                   textDecoration: "none",
                   letterSpacing: "0.04em",
                 }}

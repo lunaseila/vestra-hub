@@ -1,3 +1,4 @@
+import { useMarketplace } from "@/context/MarketplaceContext";
 import type { Item } from "@/types";
 import { Link } from "@tanstack/react-router";
 import { Eye, Heart } from "lucide-react";
@@ -24,9 +25,11 @@ export default function ItemCard({
   index = 0,
 }: ItemCardProps) {
   const [hovered, setHovered] = useState(false);
+  const { isWishlisted, toggleWishlist } = useMarketplace();
   // const [imgLoaded, setImgLoaded] = useState(false);
 
   const displayPrice = item.price_buy ? formatPrice(item.price_buy) : null;
+  const saved = isWishlisted(item.id);
 
   return (
     <div
@@ -63,7 +66,10 @@ export default function ItemCard({
             zIndex: 0,
           }}
           onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = "none";
+            const img = e.currentTarget as HTMLImageElement;
+            if (!img.src.endsWith("/assets/images/placeholder.svg")) {
+              img.src = "/assets/images/placeholder.svg";
+            }
           }}
         />
       ) : (
@@ -155,7 +161,8 @@ export default function ItemCard({
           data-ocid={`item_card.wishlist_button.${index + 1}`}
           onClick={(e) => {
             e.preventDefault();
-            onWishlist?.();
+            if (onWishlist) onWishlist();
+            else toggleWishlist(item.id);
           }}
           style={{
             width: "32px",
@@ -167,10 +174,10 @@ export default function ItemCard({
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
-            color: "#111111",
+            color: saved ? "#C4A97D" : "#111111",
           }}
         >
-          <Heart size={14} />
+          <Heart size={14} fill={saved ? "#C4A97D" : "none"} />
         </button>
         <button
           type="button"

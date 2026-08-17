@@ -413,7 +413,7 @@ export default function About() {
           }}
         >
           <Link
-            to="/Collection"
+            to="/Archive"
             data-ocid="about.browse_button"
             style={{
               display: "inline-block",
@@ -441,7 +441,7 @@ export default function About() {
             Browse Collection
           </Link>
           <Link
-            to="/SubmitItem"
+            to="/Sell"
             data-ocid="about.sell_button"
             style={{
               display: "inline-block",

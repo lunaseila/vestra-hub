@@ -228,7 +228,7 @@ export default function Home() {
               animation: "hero-text-up 0.8s var(--ease-reveal) 0.5s both",
             }}
           >
-            <Link to="/Collection">
+            <Link to="/Archive">
               <button
                 type="button"
                 data-ocid="home.start_creating_button"
@@ -247,7 +247,7 @@ export default function Home() {
                 Shop Collection
               </button>
             </Link>
-            <Link to="/SubmitItem">
+            <Link to="/Sell">
               <button
                 type="button"
                 data-ocid="home.submit_item_button"
@@ -541,7 +541,7 @@ export default function Home() {
           >
             Have a piece to sell?
           </h2>
-          <Link to="/SubmitItem">
+          <Link to="/Sell">
             <button
               type="button"
               data-ocid="home.submit_item_cta_button"
@@ -717,7 +717,7 @@ export default function Home() {
             >
               Curated for You
             </h2>
-            <Link to="/Collection">
+            <Link to="/Archive">
               <button
                 type="button"
                 data-ocid="home.explore_collection_button"
@@ -978,7 +978,7 @@ export default function Home() {
             Discover authenticated luxury pieces at a fraction of their original
             price.
           </p>
-          <Link to="/Collection">
+          <Link to="/Archive">
             <button
               type="button"
               data-ocid="home.buy_cta_button"
@@ -1048,7 +1048,7 @@ export default function Home() {
             Let our experts authenticate and list your luxury items to thousands
             of discerning buyers.
           </p>
-          <Link to="/SubmitItem">
+          <Link to="/Sell">
             <button
               type="button"
               data-ocid="home.sell_cta_button"

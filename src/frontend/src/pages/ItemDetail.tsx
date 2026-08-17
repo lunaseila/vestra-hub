@@ -1,8 +1,15 @@
 import ItemCard from "@/components/shared/ItemCard";
 import VerifiedBadge from "@/components/shared/VerifiedBadge";
-import { MOCK_ITEMS, MOCK_PASSPORTS } from "@/types";
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { Link, useSearch } from "@tanstack/react-router";
-import { ArrowRight, Award, ChevronDown, ChevronUp, Heart } from "lucide-react";
+import {
+  ArrowRight,
+  Award,
+  ChevronDown,
+  ChevronUp,
+  Heart,
+  ShoppingBag,
+} from "lucide-react";
 import { useState } from "react";
 
 function formatPrice(cents: number) {
@@ -18,17 +25,27 @@ const ACCORDION_SECTIONS = [
 
 export default function ItemDetail() {
   const search = useSearch({ from: "/Item" }) as { id?: string };
-  const item = MOCK_ITEMS.find((i) => i.id === search.id) ?? MOCK_ITEMS[0];
-  const passport =
-    MOCK_PASSPORTS.find((p) => p.item_id === item.id) ?? MOCK_PASSPORTS[0];
+  const {
+    products,
+    getItem,
+    getPassportForItem,
+    isWishlisted,
+    toggleWishlist,
+    addToBag,
+    bag,
+  } = useMarketplace();
+  const item = getItem(search.id) ?? products[0];
+  const passport = getPassportForItem(item.id);
 
   const [mainImg, setMainImg] = useState(0);
-  const [wishlisted, setWishlisted] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>("description");
+  const [bagMessage, setBagMessage] = useState("");
 
-  const related = MOCK_ITEMS.filter(
-    (i) => i.category === item.category && i.id !== item.id,
-  ).slice(0, 4);
+  const related = products
+    .filter((i) => i.category === item.category && i.id !== item.id)
+    .slice(0, 4);
+  const wishlisted = isWishlisted(item.id);
+  const inBag = bag.some((line) => line.itemId === item.id);
 
   const toggleSection = (key: string) =>
     setOpenSection((s) => (s === key ? null : key));
@@ -37,7 +54,9 @@ export default function ItemDetail() {
     description: item.description,
     material: item.material,
     measurements: item.measurements,
-    passport: item.passport_id ?? "N/A",
+    passport: passport
+      ? passport.certificate_code || passport.id
+      : "No Digital Fashion Passport has been issued for this item yet.",
   };
 
   return (
@@ -73,7 +92,7 @@ export default function ItemDetail() {
           </Link>
           <span>/</span>
           <Link
-            to="/Collection"
+            to="/Archive"
             style={{ color: "var(--vestra-grey)", textDecoration: "none" }}
           >
             Collection
@@ -205,7 +224,23 @@ export default function ItemDetail() {
               >
                 {item.condition}
               </span>
-              <VerifiedBadge />
+              {passport ? (
+                <VerifiedBadge />
+              ) : (
+                <span
+                  style={{
+                    padding: "0.25rem 0.875rem",
+                    borderRadius: "100px",
+                    background: "var(--vestra-gold-muted)",
+                    border: "1px solid var(--vestra-border)",
+                    fontFamily: "DM Sans",
+                    fontSize: "0.8rem",
+                    color: "var(--vestra-gold)",
+                  }}
+                >
+                  Authentication pending
+                </span>
+              )}
             </div>
 
             {/* Price */}
@@ -232,25 +267,44 @@ export default function ItemDetail() {
               }}
             >
               {item.price_buy && (
+                <button
+                  type="button"
+                  className="btn-gold"
+                  data-ocid="item_detail.add_to_bag_button"
+                  style={{ width: "100%", padding: "0.875rem" }}
+                  onClick={() => {
+                    addToBag(item.id);
+                    setBagMessage(
+                      inBag
+                        ? "This piece is already in your bag."
+                        : "Added to your bag.",
+                    );
+                  }}
+                >
+                  <ShoppingBag size={16} className="mr-2" />
+                  {inBag ? "In Bag" : "Add to Bag"}
+                </button>
+              )}
+              {item.price_buy && (
                 <Link
-                  to="/BuyItem"
+                  to="/Checkout"
                   search={{ id: item.id }}
                   style={{ display: "block" }}
                 >
                   <button
                     type="button"
-                    className="btn-gold"
-                    data-ocid="item_detail.buy_now_button"
+                    className="btn-outlined"
+                    data-ocid="item_detail.checkout_now_button"
                     style={{ width: "100%", padding: "0.875rem" }}
                   >
-                    Buy Now
+                    Checkout This Piece
                   </button>
                 </Link>
               )}
               <button
                 type="button"
                 data-ocid="item_detail.wishlist_button"
-                onClick={() => setWishlisted((w) => !w)}
+                onClick={() => toggleWishlist(item.id)}
                 style={{
                   width: "100%",
                   padding: "0.875rem",
@@ -277,6 +331,49 @@ export default function ItemDetail() {
                 />
                 {wishlisted ? "Saved to Wishlist" : "Add to Wishlist"}
               </button>
+              {bagMessage && (
+                <p
+                  style={{
+                    color: "var(--vestra-grey-light)",
+                    fontSize: "0.82rem",
+                  }}
+                >
+                  {bagMessage}{" "}
+                  <Link to="/Bag" style={{ color: "var(--vestra-gold)" }}>
+                    View bag
+                  </Link>
+                </p>
+              )}
+            </div>
+
+            <div
+              style={{
+                border: "1px solid var(--vestra-border)",
+                borderRadius: "8px",
+                padding: "1rem",
+                marginBottom: "1.5rem",
+                color: "var(--vestra-grey-light)",
+                fontFamily: "DM Sans",
+                fontSize: "0.85rem",
+                lineHeight: 1.7,
+              }}
+            >
+              <p>
+                <span style={{ color: "var(--vestra-white)" }}>Seller:</span>{" "}
+                {item.seller_id || "Not provided"}
+              </p>
+              <p>
+                <span style={{ color: "var(--vestra-white)" }}>Era:</span>{" "}
+                {Math.floor(item.year / 10) * 10}s
+              </p>
+              <p>
+                <span style={{ color: "var(--vestra-white)" }}>Shipping:</span>{" "}
+                Calculated by configured shipping provider at checkout.
+              </p>
+              <p>
+                <span style={{ color: "var(--vestra-white)" }}>Returns:</span>{" "}
+                Governed by final Returns & Refunds policy.
+              </p>
             </div>
 
             <div
@@ -427,7 +524,7 @@ export default function ItemDetail() {
                   </p>
                 </div>
               </div>
-              <Link to="/DigitalPassport" search={{ id: passport.id }}>
+              <Link to="/Passport" search={{ id: passport.id }}>
                 <button
                   type="button"
                   className="btn-gold"

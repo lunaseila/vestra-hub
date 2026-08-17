@@ -1,4 +1,6 @@
+import { useMarketplace } from "@/context/MarketplaceContext";
 import { Link } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 
 const TIMELINE_STEPS = [
   { num: "①", label: "Submitted by Seller" },
@@ -7,32 +9,20 @@ const TIMELINE_STEPS = [
   { num: "④", label: "Listed for Sale" },
 ];
 
-const CERTIFICATE_ITEM = {
-  id: "N17639",
-  name: "Items N17639",
-  brand: "Brand",
-  collection: "Collection",
-  category: "Type",
-  condition: "Condition",
-};
-
-const CERTIFICATE_PASSPORT = {
-  id: "pp-N17639",
-  item_id: "N17639",
-  authentication_date: "",
-  inspector_name: "",
-  certificate_code: "",
-  condition_verified: "",
-  qr_code_url: "",
-  blockchain_hash: "",
-  created_at: "",
-};
-
 export default function DigitalPassport() {
-  const passport = CERTIFICATE_PASSPORT;
-  const item = CERTIFICATE_ITEM;
+  const search = useSearch({ strict: false }) as { id?: string };
+  const { products, passports, getPassportForItem } = useMarketplace();
+  const passport =
+    passports.find(
+      (p) => p.id === search.id || p.certificate_code === search.id,
+    ) ?? getPassportForItem(search.id);
+  const item =
+    products.find((p) => p.id === passport?.item_id) ??
+    products.find((p) => p.id === search.id) ??
+    products[0];
+  const passportIssued = Boolean(passport);
 
-  const formattedDate = passport.authentication_date
+  const formattedDate = passport?.authentication_date
     ? new Date(passport.authentication_date).toLocaleDateString("en-GB", {
         day: "numeric",
         month: "short",
@@ -329,7 +319,7 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                {item.collection}
+                {item.season || "—"}
               </span>
             </div>
 
@@ -391,7 +381,7 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                Verified
+                {passportIssued ? "Verified" : "Not issued"}
               </span>
             </div>
 
@@ -423,7 +413,7 @@ export default function DigitalPassport() {
                   letterSpacing: "0.04em",
                 }}
               >
-                {passport.certificate_code || "—"}
+                {passport?.certificate_code || passport?.id || "—"}
               </span>
             </div>
 
@@ -486,7 +476,7 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                {passport.inspector_name || "—"}
+                {passport?.inspector_name || "—"}
               </span>
             </div>
 
@@ -515,7 +505,7 @@ export default function DigitalPassport() {
                   color: "var(--vestra-white)",
                 }}
               >
-                {passport.condition_verified || item.condition}
+                {passport?.condition_verified || item.condition}
               </span>
             </div>
           </div>
@@ -697,7 +687,7 @@ export default function DigitalPassport() {
 
         {/* CTA */}
         <div style={{ textAlign: "center", marginTop: "0.5rem" }}>
-          <Link to="/Collection">
+          <Link to="/Archive">
             <button
               type="button"
               data-ocid="passport.shop_similar_button"
