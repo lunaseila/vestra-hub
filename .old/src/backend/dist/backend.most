@@ -1,0 +1,214 @@
+// Version: 1.0.0
+type AccessRequest__1052349349 = {createdAt : Int; email : Text; id : Nat};
+type ApplicationStatus__318902853 = {#Accepted; #Declined; #Pending; #Viewed};
+type Application__989512355 =
+  {
+    applicantId : Text;
+    createdAt : Int;
+    id : Nat;
+    message : Text;
+    opportunityId : Nat;
+    status : ApplicationStatus__318902853
+  };
+type ConnectionStatus__50833293 = {#Accepted; #Declined; #Pending};
+type Connection__553198232 =
+  {
+    connectedAt : Int;
+    id : Nat;
+    receiverId : Text;
+    requesterId : Text;
+    status : ConnectionStatus__50833293
+  };
+type Data__628993992<T> = {var count : Nat__1040412405; elements : [var ?T]};
+type Data__80296667<K, V> =
+  {var count : Nat__1040412405; kvs : [var ?(K, V)]};
+type DigitalPassport__218458324 =
+  {
+    authentication_date : Timestamp__301639476;
+    blockchain_hash : Text;
+    certificate_code : Text;
+    condition_verified : Text;
+    created_at : Timestamp__301639476;
+    id : PassportId__408631684;
+    inspector_name : Text;
+    item_id : ItemId__833640393;
+    qr_code_url : Text
+  };
+type Internal__1007892817<T> =
+  {children : [var ?Node__918630472<T>]; data : Data__628993992<T>};
+type Internal__41346355<K, V> =
+  {children : [var ?Node__1000929467<K, V>]; data : Data__80296667<K, V>};
+type ItemId__833640393 = Text;
+type Item__461585918 =
+  {
+    availability : Text;
+    brand : Text;
+    category : Text;
+    condition : Text;
+    created_at : Timestamp__301639476;
+    deposit : ?Nat;
+    description : Text;
+    id : ItemId__833640393;
+    images : [Text];
+    material : Text;
+    measurements : Text;
+    name : Text;
+    passport_id : ?PassportId__408631684;
+    price_buy : ?Nat;
+    price_rent_day : ?Nat;
+    season : Text;
+    seller_id : UserId__158757552;
+    status : Text;
+    year : Nat
+  };
+type Leaf__693487502<T> = {data : Data__628993992<T>};
+type Leaf__712614010<K, V> = {data : Data__80296667<K, V>};
+type Nat__1040412405 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__1000929467<K, V> =
+  {#internal : Internal__41346355<K, V>; #leaf : Leaf__712614010<K, V>};
+type Node__918630472<T> =
+  {#internal : Internal__1007892817<T>; #leaf : Leaf__693487502<T>};
+type OnboardingSubmission__556988969 =
+  {
+    country : Text;
+    createdAt : Int;
+    experienceLevel : Text;
+    id : Nat;
+    industry : Text;
+    intent : Text;
+    projectDescription : Text;
+    userId : Text
+  };
+type OpportunityStatus__892706052 = {#Active; #Filled; #Paused};
+type OpportunityType__924789081 =
+  {#Freelance; #Investment; #Job; #Partnership; #Startup};
+type Opportunity__21311568 =
+  {
+    applications : [Nat];
+    country : Text;
+    createdAt : Int;
+    description : Text;
+    experienceRequired : Text;
+    id : Nat;
+    industry : Text;
+    opportunityType : OpportunityType__924789081;
+    postedBy : Text;
+    status : OpportunityStatus__892706052;
+    title : Text
+  };
+type OrderId__197865225 = Text;
+type Order__720360493 =
+  {
+    buyer_id : UserId__158757552;
+    created_at : Timestamp__301639476;
+    deposit_paid : Nat;
+    id : OrderId__197865225;
+    item_id : ItemId__833640393;
+    order_type : Text;
+    rent_end : ?Timestamp__301639476;
+    rent_start : ?Timestamp__301639476;
+    status : Text;
+    stripe_payment_id : Text;
+    total_price : Nat
+  };
+type PassportId__408631684 = Text;
+type Set__1052415927<T> = Set__310360741<T>;
+type Set__310360741<T> =
+  {var root : Node__918630472<T>; var size : Nat__1040412405};
+type StyleProfileId__882010847 = Text;
+type StyleProfile__171971100 =
+  {
+    archetype : Text;
+    created_at : Timestamp__301639476;
+    decade : Text;
+    id : StyleProfileId__882010847;
+    occasion : Text;
+    palette : Text;
+    user_id : UserId__158757552
+  };
+type Timestamp__301639476 = Int;
+type UserId__158757552 = Text;
+type User__933515552 =
+  {
+    avatar_url : Text;
+    created_at : Timestamp__301639476;
+    email : Text;
+    id : UserId__158757552;
+    member_since : Timestamp__301639476;
+    name : Text;
+    shipping_addresses : [Text];
+    stripe_customer_id : Text;
+    style_profile_id : ?StyleProfileId__882010847;
+    tier : Text
+  };
+actor {
+  stable accessRequestState : {var nextAccessRequestId : Nat};
+  stable accessRequests :
+    {
+      var root : Node__1000929467<Nat, AccessRequest__1052349349>;
+      var size : Nat__1040412405
+    };
+  stable appState :
+    {var nextItemId : Nat; var nextOrderId : Nat; var nextPassportId : Nat};
+  stable chApplications :
+    {
+      var root : Node__1000929467<Nat, Application__989512355>;
+      var size : Nat__1040412405
+    };
+  stable chState :
+    {
+      var nextApplicationId : Nat;
+      var nextConnectionId : Nat;
+      var nextOnboardingId : Nat;
+      var nextOpportunityId : Nat
+    };
+  stable connections :
+    {
+      var root : Node__1000929467<Nat, Connection__553198232>;
+      var size : Nat__1040412405
+    };
+  stable items :
+    {
+      var root : Node__1000929467<ItemId__833640393, Item__461585918>;
+      var size : Nat__1040412405
+    };
+  stable onboardings :
+    {
+      var root : Node__1000929467<Nat, OnboardingSubmission__556988969>;
+      var size : Nat__1040412405
+    };
+  stable opportunities :
+    {
+      var root : Node__1000929467<Nat, Opportunity__21311568>;
+      var size : Nat__1040412405
+    };
+  stable orders :
+    {
+      var root : Node__1000929467<OrderId__197865225, Order__720360493>;
+      var size : Nat__1040412405
+    };
+  stable passports :
+    {
+      var root :
+        Node__1000929467<PassportId__408631684, DigitalPassport__218458324>;
+      var size : Nat__1040412405
+    };
+  stable profiles :
+    {
+      var root : Node__1000929467<UserId__158757552, StyleProfile__171971100>;
+      var size : Nat__1040412405
+    };
+  stable users :
+    {
+      var root : Node__1000929467<UserId__158757552, User__933515552>;
+      var size : Nat__1040412405
+    };
+  stable wishlists :
+    {
+      var root :
+        Node__1000929467<UserId__158757552,
+                          Set__1052415927<ItemId__833640393>>;
+      var size : Nat__1040412405
+    }
+};

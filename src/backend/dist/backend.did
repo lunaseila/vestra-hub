@@ -1,0 +1,237 @@
+type UserUpdate = 
+ record {
+   avatar_url: text;
+   email: text;
+   name: text;
+   shipping_addresses: vec text;
+   stripe_customer_id: text;
+   style_profile_id: opt StyleProfileId;
+   tier: text;
+ };
+type UserId = text;
+type User = 
+ record {
+   avatar_url: text;
+   created_at: Timestamp;
+   email: text;
+   id: UserId;
+   member_since: Timestamp;
+   name: text;
+   shipping_addresses: vec text;
+   stripe_customer_id: text;
+   style_profile_id: opt StyleProfileId;
+   tier: text;
+ };
+type Timestamp = int;
+type StyleProfileInput = 
+ record {
+   archetype: text;
+   decade: text;
+   occasion: text;
+   palette: text;
+ };
+type StyleProfileId = text;
+type StyleProfile = 
+ record {
+   archetype: text;
+   created_at: Timestamp;
+   decade: text;
+   id: StyleProfileId;
+   occasion: text;
+   palette: text;
+   user_id: UserId;
+ };
+type PassportId = text;
+type OrderId = text;
+type Order = 
+ record {
+   buyer_id: UserId;
+   created_at: Timestamp;
+   deposit_paid: nat;
+   id: OrderId;
+   item_id: ItemId;
+   order_type: text;
+   rent_end: opt Timestamp;
+   rent_start: opt Timestamp;
+   status: text;
+   stripe_payment_id: text;
+   total_price: nat;
+ };
+type OpportunityType = 
+ variant {
+   Freelance;
+   Investment;
+   Job;
+   Partnership;
+   Startup;
+ };
+type OpportunityStatus = 
+ variant {
+   Active;
+   Filled;
+   Paused;
+ };
+type Opportunity = 
+ record {
+   applications: vec nat;
+   country: text;
+   createdAt: int;
+   description: text;
+   experienceRequired: text;
+   id: nat;
+   industry: text;
+   opportunityType: OpportunityType;
+   postedBy: text;
+   status: OpportunityStatus;
+   title: text;
+ };
+type OnboardingSubmission = 
+ record {
+   country: text;
+   createdAt: int;
+   experienceLevel: text;
+   id: nat;
+   industry: text;
+   intent: text;
+   projectDescription: text;
+   userId: text;
+ };
+type ItemId = text;
+type ItemFilter = 
+ record {
+   availability: opt text;
+   brand: opt text;
+   category: opt text;
+   condition: opt text;
+   max_price: opt nat;
+   min_price: opt nat;
+ };
+type Item = 
+ record {
+   availability: text;
+   brand: text;
+   category: text;
+   condition: text;
+   created_at: Timestamp;
+   deposit: opt nat;
+   description: text;
+   id: ItemId;
+   images: vec text;
+   material: text;
+   measurements: text;
+   name: text;
+   passport_id: opt PassportId;
+   price_buy: opt nat;
+   price_rent_day: opt nat;
+   season: text;
+   seller_id: UserId;
+   status: text;
+   year: nat;
+ };
+type DigitalPassport = 
+ record {
+   authentication_date: Timestamp;
+   blockchain_hash: text;
+   certificate_code: text;
+   condition_verified: text;
+   created_at: Timestamp;
+   id: PassportId;
+   inspector_name: text;
+   item_id: ItemId;
+   qr_code_url: text;
+ };
+type CreateOrderInput = 
+ record {
+   deposit_paid: nat;
+   item_id: ItemId;
+   order_type: text;
+   rent_end: opt Timestamp;
+   rent_start: opt Timestamp;
+   stripe_payment_id: text;
+   total_price: nat;
+ };
+type ConnectionStatus = 
+ variant {
+   Accepted;
+   Declined;
+   Pending;
+ };
+type Connection = 
+ record {
+   connectedAt: int;
+   id: nat;
+   receiverId: text;
+   requesterId: text;
+   status: ConnectionStatus;
+ };
+type ApplicationStatus = 
+ variant {
+   Accepted;
+   Declined;
+   Pending;
+   Viewed;
+ };
+type Application = 
+ record {
+   applicantId: text;
+   createdAt: int;
+   id: nat;
+   message: text;
+   opportunityId: nat;
+   status: ApplicationStatus;
+ };
+service : {
+  addToWishlist: (item_id: ItemId) -> ();
+  createApplication: (opportunityId: nat, message: text) -> (Application);
+  createConnection: (receiverId: text) -> (Connection);
+  createItem: (item: Item) -> (Item);
+  createOpportunity: (title: text, description: text, opportunityType:
+   OpportunityType, country: text, industry: text, experienceRequired:
+   text) -> (Opportunity);
+  createOrder: (input: CreateOrderInput) -> (Order);
+  createPassport: (input:
+   record {
+     condition_verified: text;
+     inspector_name: text;
+     item_id: ItemId;
+   }) -> (DigitalPassport);
+  createUser: (name: text, email: text) -> (User);
+  getApplication: (id: nat) -> (opt Application) query;
+  getConnection: (id: nat) -> (opt Connection) query;
+  getConnectionsByUser: (userId: text) -> (vec Connection) query;
+  getFeaturedItems: () -> (vec Item) query;
+  getItem: (id: ItemId) -> (opt Item) query;
+  getItemsByCategory: (category: text) -> (vec Item) query;
+  getItemsByFilter: (filter: ItemFilter) -> (vec Item) query;
+  getOnboardingByUser: (userId: text) -> (opt OnboardingSubmission) query;
+  getOpportunitiesByCountry: (country: text) -> (vec Opportunity) query;
+  getOpportunitiesByIndustry: (industry: text) -> (vec Opportunity) query;
+  getOpportunitiesByType: (opportunityType: OpportunityType) ->
+   (vec Opportunity) query;
+  getOpportunity: (id: nat) -> (opt Opportunity) query;
+  getOrder: (id: OrderId) -> (opt Order) query;
+  getPassport: (id: PassportId) -> (opt DigitalPassport) query;
+  getPassportByItem: (item_id: ItemId) -> (opt DigitalPassport) query;
+  getStyleProfile: () -> (opt StyleProfile);
+  getUser: (id: UserId) -> (opt User) query;
+  getUserByPrincipal: () -> (opt User);
+  getUserOrders: () -> (vec Order);
+  getWishlist: () -> (vec ItemId);
+  listApplicationsByOpportunity: (opportunityId: nat) ->
+   (vec Application) query;
+  listApplicationsByUser: (applicantId: text) -> (vec Application) query;
+  listConnections: () -> (vec Connection) query;
+  listItems: () -> (vec Item) query;
+  listOpportunities: () -> (vec Opportunity) query;
+  removeFromWishlist: (item_id: ItemId) -> ();
+  saveStyleProfile: (input: StyleProfileInput) -> (StyleProfile);
+  storeAccessRequest: (email: text) -> ();
+  submitOnboarding: (country: text, intent: text, industry: text,
+   experienceLevel: text, projectDescription: text) -> (OnboardingSubmission);
+  updateApplicationStatus: (id: nat, status: ApplicationStatus) -> (bool);
+  updateConnectionStatus: (id: nat, status: ConnectionStatus) -> (bool);
+  updateItemStatus: (id: ItemId, status: text) -> (opt Item);
+  updateOpportunityStatus: (id: nat, status: OpportunityStatus) -> (bool);
+  updateOrderStatus: (id: OrderId, status: text) -> (opt Order);
+  updateUser: (update: UserUpdate) -> (opt User);
+}
