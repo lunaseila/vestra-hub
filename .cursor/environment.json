@@ -1,0 +1,17 @@
+{
+  "name": "Vestra Hub",
+  "user": "ubuntu",
+  "install": "export PATH=\"$HOME/.local/bin:$PATH\" && npm install -g ic-mops @caffeineai/bindgen --prefix \"$HOME/.local\" && pnpm install --prefer-offline && mops install && mops build && pnpm bindgen",
+  "terminals": [
+    {
+      "name": "frontend-dev",
+      "command": "export PATH=\"$HOME/.local/bin:$PATH\"; cd src/frontend && pnpm dev"
+    }
+  ],
+  "ports": [
+    {
+      "name": "frontend dev server",
+      "port": 5173
+    }
+  ]
+}
